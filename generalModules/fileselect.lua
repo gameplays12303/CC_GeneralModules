@@ -1,3 +1,5 @@
+-- desgin to be used to select a file when a program ask
+-- to do : add start directory
 local expect = require("cc.expect")
 local  util = require("generalModules.utilties")
 local input = require("generalModules.input")
