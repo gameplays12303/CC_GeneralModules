@@ -1,4 +1,5 @@
-
+-- desing to replace the packager and require API for lua.lua
+-- this is so you can reload the APis as many times as you need
 local util = require and require("generalModules.utilties") or dofile("generalModules/utilties.lua")
 local fm = require and require("generalModules.fm") or dofile("generalModules/fm.lua")
 local handle = {}
