@@ -1,5 +1,5 @@
-local expect = ((require and require("cc.expect")) or dofile("rom/modules/main/cc/expect.lua",_ENV)).expect
-local util = ((require and require("generalModules.utilties")) or dofile("generalModules/utilties.lua",_ENV))
+local expect = require("cc.expect").expect
+local util = require("generalModules.utilties")
 local fs = fs
 ---@overload fun(_sDir:string)
 return function (_sDir)

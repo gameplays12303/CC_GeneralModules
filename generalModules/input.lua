@@ -1,8 +1,11 @@
+-- basic input system to prompt Usrs
+
+
 ---@diagnostic disable: need-check-nil
 local input = {}
 local expect = require("cc.expect")
 local completion = require("cc.completion")
-local util = require("utilties")
+local util = require("generalModules.utilties")
 local insert = table.insert
 local pack = table.pack
 local term = term
@@ -27,7 +30,7 @@ function input.BasicMenu(Table,mess,optionsColor,TextColor,BackgroundColor)
     expect(5,BackgroundColor,"number","nil")
     optionsColor = optionsColor or colors.white
     TextColor = TextColor or colors.white
-    BackgroundColor = BackgroundColor or colors.green
+    BackgroundColor = BackgroundColor or colors.black
     local Sx = term.getSize()
     local originalBack = term.getBackgroundColor()
     local originalText = term.getTextColor()
@@ -77,4 +80,5 @@ function input.BasicMenu(Table,mess,optionsColor,TextColor,BackgroundColor)
         end
     end
 end
+
 return input

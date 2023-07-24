@@ -1,13 +1,16 @@
--- desgin to be used to select a file when a program ask
--- to do : add start directory
+---@diagnostic disable: param-type-mismatch
+
+-- desgin to be used to select a file from within  a program
+
 local expect = require("cc.expect")
-local  util = require("generalModules.utilties")
+local  util =  require("generalModules.utilties")
 local input = require("generalModules.input")
----@overload fun(Text:string,bShowDir:boolean,bShowFiles:boolean,BC:number,TC:number)
-return function (Text,BC,TC)
-    expect(1,Text,"string")
-    expect(2,BC,"number","nil")
-    expect(3,TC,"number","nil")
+---@overload fun(sDir:string,Text:string,bShowDir:boolean,bShowFiles:boolean,BC:number,TC:number)
+return function (sDir,Text,BC,TC)
+    expect(1,sDir,"string")
+    expect(2,Text,"string")
+    expect(3,BC,"number","nil")
+    expect(4,TC,"number","nil")
     if BC and not util.color.isColor(BC)
     then
         error("2 argument is not a color",2)
@@ -15,6 +18,13 @@ return function (Text,BC,TC)
     if TC and not util.color.isColor(TC)
     then
         error("3 argument is not a color",2)
+    end
+    if not fs.exists(sDir)
+    then
+        error(("%s:dose not exists"):format(sDir),2)
+    elseif not fs.isDir(sDir)
+    then
+        error(("%s:is not directory"):format(sDir),2)
     end
     local dir = ""
     while true do
