@@ -26,7 +26,7 @@ return function (sDir,Text,BC,TC)
     then
         error(("%s:is not directory"):format(sDir),2)
     end
-    local dir = ""
+    local dir = sDir or ""
     while true do
         local list = util.file.list(dir,true,true)
         print(dir)

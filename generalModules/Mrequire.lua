@@ -76,7 +76,7 @@ function handle.require(_sPath,bReload)
         end
     end
     local SFn = fm.readFile(Path,"R")
-    local fn,err = load(SFn,"@"..Path,"bt",setmetatable({["shell"] = shell,["require"] = handle.require,["Mrequire"] = util.table.copy(handle,false)},{__index = _G}))
+    local fn,err = load(SFn,"@"..Path,"bt",_ENV)
     if not fn
     then
         error(err,0)
