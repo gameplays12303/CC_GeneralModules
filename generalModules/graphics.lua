@@ -1,6 +1,6 @@
 -- built to be a graphics module -- draw_assets and draw_imagess 
 
-local expect = require("cc.expect")
+local expect = (require and require("cc.expect") or dofile("rom/modules/main/cc/expect.lua")).expect
 local graphics = {}
 ---@overload fun(Table:table)
 function graphics.draw_asset(Table)
