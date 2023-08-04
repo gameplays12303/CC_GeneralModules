@@ -2,7 +2,7 @@
 -- this code dose not have a decated purpose
 -- it is just simple code that i would use multipul times 
 
-local expect = require("cc.expect")
+local expect = (require and require("cc.expect") or dofile("rom/modules/main/cc/expect.lua")).expect
 local fs,string,table = fs,string,table
 local setmetatable = setmetatable
 local getmetatable = getmetatable
