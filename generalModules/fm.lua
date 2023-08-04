@@ -2,7 +2,7 @@
 -- if you need specific handling or are going to be writing to the file
 -- multipule times this is not the handle you want to use
 
-local expect = require("cc.expect")
+local expect = (require and require("cc.expect") or dofile("rom/modules/main/cc/expect.lua")).expect
 local insert = table.insert
 local open = fs.open
 local exists = fs.exists
