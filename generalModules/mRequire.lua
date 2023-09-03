@@ -13,17 +13,29 @@ table.insert(Paths,"")
 handle.Path = {Paths = Paths}
 handle.loaded = {}
 -- adds a LoadPath to the loadPaths Table
----@overload fun(_sPath:string,bReload:boolean)
-function handle.Path.Add(_sPath)
+---comment
+---@param _sPath string
+---@param priority number|nil
+function handle.Path.Add(_sPath,priority)
     expect(1,_sPath,"string")
+    expect(2,priority,"number","nil")
+    _sPath = string.gsub(_sPath,"%.","/")
     if not fs.exists(_sPath)
     then
         error(("%s:not found"):format(_sPath),0)
     end
-    table.insert(Paths,_sPath)
+    if priority
+    then
+        table.insert(Paths,priority,_sPath)
+    else
+        table.insert(Paths,_sPath)
+    end
+    
 end
 -- removes a loadPath from the loadPaths Table
----@overload fun(_sPath:string,bReload:boolean)
+---comment
+---@param _sPath string
+---@return boolean
 function handle.Path.Remove(_sPath)
     expect(1,_sPath,"string")
     local i = util.table.find(Paths,_sPath)
@@ -33,12 +45,15 @@ function handle.Path.Remove(_sPath)
     end
     return true
 end
----@overload fun(_sPath:string,_Env:table,bOneLoad:boolean|nil,bReload:boolean)
-function handle.require(_sPath,_Env,bOneLoad,bReload)
+---comment
+---@param _sPath string
+---@param _Env table|nil
+---@param bReload boolean|nil
+---@return table|unknown
+function handle.require(_sPath,_Env,bReload)
     expect(1,_sPath,"string")
     expect(2,_Env,"table","nil")
-    expect(3,bOneLoad,"boolean","nil")
-    expect(4,bReload,"boolean","nil")
+    expect(3,bReload,"boolean","nil")
     -- backwards support for require
     -- turns the '.' into "/" then adds
     -- .lua to the end of the string
@@ -93,10 +108,7 @@ function handle.require(_sPath,_Env,bOneLoad,bReload)
     then
         error(ok[2],0)
     end
-    if not bOneLoad
-    then
-        handle.loaded[_sPath] = fn
-    end
+    handle.loaded[_sPath] = fn
     return table.unpack(ok,2)
 end
 return handle

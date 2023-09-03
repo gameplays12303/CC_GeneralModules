@@ -97,7 +97,7 @@ function utilties.file.listsubs(sPath,showFiles,showDirs,showRootDir,showRom)
       end
       return list
 end
----@overload fun(sPath:string,showFiles:boolean,showDirs:boolean,showRootDir:boolean,showRom:boolean)
+---@overload fun(sPath:string,showFiles:boolean,showDirs:boolean,showPath:boolean)
 function utilties.file.list(sPath,showFiles,showDirs,showPath)
       expect(1,sPath,"string")
       expect(2,showFiles,"boolean","nil")
@@ -197,5 +197,18 @@ function utilties.table.copy(Table,copymetatable,proxy)
             return setmetatable(proxy,metatable)
       end
       return proxy
+end
+local function temp(self)
+      local meta = getmetatable(self)
+      return ("%s (%s)"):format(meta.name,meta.hash)
+end
+function utilties.table.setType(Tbl,Type)
+      expect(1,Tbl,"table")
+      expect(2,Type,"string")
+      local meta = getmetatable(Tbl) or {}
+      meta.name = Type
+      meta.hash = tostring(Tbl):match("table: (%x+)")
+      meta.tostring = temp
+      setmetatable(Tbl,meta)
 end
 return utilties
