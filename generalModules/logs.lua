@@ -1,41 +1,75 @@
 local expect = (require and require("cc.expect") or dofile("rom/modules/main/cc/expect.lua")).expect
 local util = require and require("generalModules.utilties") or dofile("generalModules/utilties.lua")
+local fm = require and require("generalModules.fm") or dofile("generalModules/fm.lua")
 local fs = fs
----@overload fun(_sDir:string)
+---@param _sDir string
+---@return function
 return function (_sDir)
     expect(1,_sDir,"string")
     if not fs.isDir(_sDir) and fs.exists(_sDir)
     then
         error(("%s:is not a directory"):format(_sDir))
     end
-    ---@overload fun(name:string,bOverWrite:boolean|nil)
-    return function (name,bOverWrite)
-        expect(1,name,"string")
+    local managment = _sDir.."/logsman.settings"
+    ---@param _sName string
+    ---@param bOverWrite boolean|nil
+    ---@return table
+    return function (_sName,bOverWrite)
+        expect(1,_sName,"string")
         expect(2,bOverWrite,"boolean","nil")
         local Path
         local closed = false
-        name = util.file.withoutExtension(fs.getName(name))
-        if fs.exists(("%s/%s.log"):format(_sDir,name)) and not bOverWrite
+        _sName = util.file.withoutExtension(fs.getName(_sName))
+        if fs.exists(("%s/%s(1).log"):format(_sDir,_sName)) and not bOverWrite
         then
-            local i = 0
-            repeat
-                i = i+1
-            until not fs.exists(("%s/%s(%s).log"):format(_sDir,name,i))
-            Path = ("%s/%s(%s).log"):format(_sDir,name,i)
+            local info
+            if not fs.exists(managment)
+            then
+                info = {}
+            else
+                info = fm.readFile(managment,"S") or {}
+            end
+            if info[_sName] and info[_sName].created >= settings.get("logs.limit",4)
+            then
+                Path =  ("%s/%s(%s).log"):format(_sDir,_sName,info[_sName].count)
+                if info[_sName].count >= info[_sName].created
+                then
+                    info[_sName].count = 1
+                else
+                    info[_sName].count = (info[_sName].count or 0) + 1
+                end
+            else
+                if not info[_sName]
+                then
+                    info[_sName] = {count = 1,created = 2}
+                else
+                    info[_sName].created = info[_sName].created + 1
+                end
+                local i = 0
+                repeat
+                    i = i+1
+                until not fs.exists(("%s/%s(%s).log"):format(_sDir,_sName,i))
+                Path = ("%s/%s(%s).log"):format(_sDir,_sName,i)
+            end
+            fm.OverWrite(managment,info)
         else
-            Path = ("%s/%s.log"):format(_sDir,name)
+            Path = ("%s/%s(1).log"):format(_sDir,_sName)
         end
-        local file = fs.open(Path,"w")
+        local file,err = fs.open(Path,"w")
+        if not file
+        then
+            error(err,0)
+        end
         local handle = {}
         ---@overload fun(info:string)
         function handle.info(info)
             expect(1,info,"string")
-            file.write(("info:%s:%s \n"):format(os.date(),info))
+            file.write(("info:%s:%s\n"):format(os.date(),info))
         end
         ---@overload fun(err:string)
         function handle.error(err)
             expect(1,err,"string")
-            file.write(("error:%s:%s \n"):format(os.date(),err))
+            file.write(("error:%s:%s\n"):format(os.date(),err))
         end
         function handle.isClosed()
             return closed
@@ -44,6 +78,7 @@ return function (_sDir)
             file.close()
             closed = true
         end
+        util.table.setType(handle,("log:%s"):format(_sName))
         return handle
     end
 end
