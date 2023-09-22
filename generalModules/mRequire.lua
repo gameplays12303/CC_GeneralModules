@@ -7,10 +7,9 @@
 local util = require and require("generalModules.utilties") or dofile("generalModules/utilties.lua")
 local fm = require and require("generalModules.fm") or dofile("generalModules/fm.lua")
 local expect = (require and require("cc.expect") or dofile("rom/modules/main/cc/expect.lua")).expect
-local handle = {}
-local Paths = util.file.list("rom/modules",false,true,true)
-table.insert(Paths,"")
-handle.Path = {Paths = Paths}
+local handle = {path = {}}
+handle.Path = {Paths = util.file.list("rom/modules",false,true,true)}
+table.insert(handle.Path.Paths,"")
 handle.loaded = {}
 -- adds a LoadPath to the loadPaths Table
 ---comment
@@ -26,9 +25,9 @@ function handle.Path.Add(_sPath,priority)
     end
     if priority
     then
-        table.insert(Paths,priority,_sPath)
+        table.insert(handle.Path.Paths,priority,_sPath)
     else
-        table.insert(Paths,_sPath)
+        table.insert(handle.Path.Paths,_sPath)
     end
     
 end
@@ -38,10 +37,10 @@ end
 ---@return boolean
 function handle.Path.Remove(_sPath)
     expect(1,_sPath,"string")
-    local i = util.table.find(Paths,_sPath)
+    local i = util.table.find(handle.Path.Paths,_sPath)
     if i
     then
-        table.remove(Paths,i)
+        table.remove(handle.Path.Paths,i)
     end
     return true
 end
@@ -60,9 +59,9 @@ function handle.require(_sPath,_Env,bReload)
     _sPath = string.gsub(_sPath,"%.","/")..".lua"
     
     -- checks to see if the modules exists
-    -- in the paths written in the Path Table
+    -- in the Paths written in the Path Table
     local Path
-    for _,v in pairs(Paths) do
+    for _,v in pairs(handle.Path.Paths) do
         local Tem = fs.combine(v,_sPath)
         if fs.exists(Tem)
         then
@@ -76,7 +75,7 @@ function handle.require(_sPath,_Env,bReload)
     if not Path
     then
         local err = _sPath.."\n"
-        for _,v in pairs(Paths) do
+        for _,v in pairs(handle.Path.Paths) do
             err = err..fs.combine(v,_sPath)..": not found".."\n"
         end
         error(err,2)

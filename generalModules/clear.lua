@@ -1,6 +1,9 @@
 local term = term
----@overload fun(BC:number,TC:number)
-return function (BC,TC)
+---@param Sx number
+---@param sY number
+---@param BC number
+---@param TC number
+return function (Sx,sY,BC,TC)
     if BC
     then
         term.setBackgroundColor(BC)
@@ -10,5 +13,5 @@ return function (BC,TC)
         term.setTextColor(TC)
     end
     term.clear()
-    term.setCursorPos(1,1)
+    term.setCursorPos(Sx or 1,sY or 1)
 end
