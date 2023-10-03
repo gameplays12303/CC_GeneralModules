@@ -1,5 +1,4 @@
 ---@diagnostic disable: undefined-field, duplicate-set-field
-
 ---@diagnostic disable-next-line: undefined-field
 local native = type(term) == "function" and term() or type(term.current) == "function" and term.current() or type(term.native) == "function" and term.native() or type(term.native) == "table" and term.native or term
 local util = require and require("generalModules.utilties") or BIOS.dofile("generalModules/utilties.lua")
@@ -723,6 +722,8 @@ function terminal:run_list(OTbl,TblSettings)
         Add("message","string nil","will be displayed on the first row")
         Add("MBC","number nil","message_BackgroundColor")
         Add("MTC","number nil","message_TextColor")
+        Add("OTC","number nil","option text color")
+        Add("OBC","number nil","option Background color")
         error(("table of settings %s"):format(stri),0)
     end
     TblSettings = expect(false,2,TblSettings,"table","nil") or {}
