@@ -1,8 +1,8 @@
 ---@diagnostic disable: undefined-field, duplicate-set-field
 ---@diagnostic disable-next-line: undefined-field
 local native = type(term) == "function" and term() or type(term.current) == "function" and term.current() or type(term.native) == "function" and term.native() or type(term.native) == "table" and term.native or term
-local util = require and require("generalModules.utilties") or BIOS.dofile("generalModules/utilties.lua")
-local expect = (require and require("generalModules.expect2") or BIOS.dofile("generalModules/expect2.lua"))
+local util = require and require("generalModules.utilties") or dofile("generalModules/utilties.lua")
+local expect = (require and require("generalModules.expect2") or dofile("generalModules/expect2.lua"))
 local range = expect.range
 local field = expect.field
 ---@diagnostic disable-next-line: cast-local-type
