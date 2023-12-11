@@ -964,8 +964,8 @@ function terminal:run_list(OTbl,TblSettings)
     if otpLen > 1 and GUI.buttonRun
     then
         textWindow.reposition(2,1,x-1,1)
-        left = GUI:Term(1,1,1,1)
-        right = GUI:Term(x,1,x,1)
+        left = self:Term(1,1,1,1)
+        right = self:Term(x,1,1,1)
         left:make_button(false)
         right:make_button(false)
         left.default:setText("<")
