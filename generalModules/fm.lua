@@ -3,14 +3,12 @@
 -- multipule times this is not the handle you want to use
 
 local expect = (require and require("cc.expect") or dofile("rom/modules/main/cc/expect.lua")).expect
-local insert = table.insert
 local open = fs.open
 local exists = fs.exists
 local fm = {}
 ---@overload fun(sPath:string,data:any,mode:string)
 function fm.OverWrite(sPath,data,mode)
     expect(1,sPath,"string")
-    expect(3,mode,"string","nil")
     mode = mode or "S"
     if mode ~= "S" and mode ~= "R"
     then
