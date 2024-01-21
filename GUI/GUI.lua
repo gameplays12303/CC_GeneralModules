@@ -930,7 +930,7 @@ function terminal:Usrinput(_sContent,Tblsettings)
             if CursorPosX == 1 and CursorPosY > 1
             then
                 local OffsetY = select(2,Usrinput:getOffset())
-                local lastLineLength = #Usrinput.lines[CursorPosY+OffsetY]
+                local lastLineLength = #Usrinput.lines[CursorPosY+OffsetY-1]
                 local windowlengh = select(2,Usrinput:getSize())
                 if OffsetY > 0
                 then
@@ -944,8 +944,9 @@ function terminal:Usrinput(_sContent,Tblsettings)
                     Usrinput:setOffset(lastLineLength-windowlengh)
                     Usrinput:setCursorPos(windowlengh)
                 else
-                    Usrinput:setCursorPos(lastLineLength)
+                    Usrinput:setCursorPos(lastLineLength+1)
                 end
+                Usrinput:write("\b")
             end
             Usrinput:write("\b")
         end,
@@ -1022,6 +1023,10 @@ function terminal:Usrinput(_sContent,Tblsettings)
             end
         end
     end)
+    if result == "\n"
+    then
+        return ""
+    end
     return result
 end
 
