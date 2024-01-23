@@ -45,13 +45,6 @@ handle.expect = function (_bClasses,index,var,...)
                     return var
                 end
             end
-        else
-            for _,v in pairs({...}) do
-                if v == "table"
-                then
-                    return true
-                end
-            end
         end
     else
         for _,v in pairs({...}) do
@@ -81,7 +74,7 @@ handle.blacklist  = function (_bClasses,index,var,...)
         info = (getmetatable(var) or {}).type
     end
     local faild = false
-    for i,v in pairs({...}) do
+    for _,v in pairs({...}) do
         if info
         then
             for _,b in pairs({...}) do
@@ -129,7 +122,7 @@ handle.field = function (loc,tbl,index,...)
     for i,v in pairs({...}) do
         handle.expect(false,i+4,v,"string")
     end
-    local bool,err = pcall(handle.expect,true,0,tbl[index],...)
+    local bool = pcall(handle.expect,true,0,tbl[index],...)
     if not bool
     then
         error(("argument #%s: %s is expected to be %s: got %s"):format(loc,index,listerror({...}),type(tbl[index])),3)
@@ -153,8 +146,9 @@ handle.range = function (index,num,min,max)
     end
     if num > max or num < min
     then
-        error(("expected argument #%s: to be between %s and %s got %s"):format(index,min,max,num))
+        error(("expected argument #%s: to be between %s and %s got %s"):format(index,min,max,num),3)
     end
     return num
 end
+setmetatable(handle,{__call = handle.expect})
 return handle

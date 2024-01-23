@@ -1,4 +1,4 @@
----@diagnostic disable: undefined-field, duplicate-set-field
+---@diagnostic disable: duplicate-set-field, undefined-field
 
 ---@diagnostic disable-next-line: undefined-field
 local native = type(term) == "function" and term() or type(term.current) == "function" and term.current() or type(term.native) == "function" and term.native() or type(term.native) == "table" and term.native or term
@@ -9,9 +9,9 @@ local field = expect.field
 ---@diagnostic disable-next-line: cast-local-type
 expect = expect.expect
 
+---@diagnostic disable-next-line: param-type-mismatch
 native = util.table.copy(native)
 
----@diagnostic disable-next-line: param-type-mismatch
 local GUI
 ---@diagnostic disable-next-line: param-type-mismatch
 local function isColor(color)
@@ -22,8 +22,8 @@ local function isColor(color)
 end
 ---@class terminal
 
-local function restorePallet(Tbl)
-    for i,v in pairs(Tbl.color.palette) do
+local function restorePallet(terminal)
+    for i,v in pairs(terminal.color.palette) do
         if util.color.isColor(i)
         then
             native.setPaletteColor(i,table.unpack(v))
@@ -46,7 +46,9 @@ GUI = setmetatable({
     visible = false,
     children = setmetatable({},{__mode = "v"})
 },{__index = terminal})
-local focus = tostring(GUI)
+function GUI.getSize()
+    return native.getSize()
+end
 function GUI.setNatvieTable(Tbl)
     expect(true,1,Tbl,"table","monitor")
     native = util.table.copy(Tbl)
@@ -57,7 +59,7 @@ end
 function GUI.getABS()
     return 1,1
 end
-function GUI.isVisble()
+function GUI.isVisible()
     return true  
 end
 function GUI.redrawAll()
@@ -65,7 +67,7 @@ function GUI.redrawAll()
 end
 
 --- builds a terminal to draw to
-util.table.setType(GUI,"blueprint")
+util.table.setType(GUI,"terminal")
 function terminal:clear(_redrawChildren)
     expect(false,1,_redrawChildren,"boolean","nil")
     self.pixels = {}
@@ -76,11 +78,11 @@ function terminal:reset()
     self:redraw(false)
 end
 function terminal:getSize()
-    return self.window.width,self.window.height 
+    return self.window.width,self.window.height
 end
 function terminal:redraw(_redrawChildren)
     local nativeColor = native.getBackgroundColor()
-    if self:isVisble()
+    if self:isVisible()
     then
         local aX,aY = self:getABS()
         local x,y = self:getSize()
@@ -159,9 +161,6 @@ function terminal:setPixel(color,x,y)
     self.pixels[y] = self.pixels[y] or {}
     self.pixels[y][x] = color
 end
-function terminal:isFocus()
-    return self == focus
-end
 function terminal:getCenter()
     local Sx,Sy = self:getSize()
     local x = math.ceil(Sx/2)
@@ -185,8 +184,8 @@ end
 ---@param nWidth number
 ---@param nHeight number
 ---@param Visible boolean|nil
-function terminal:Term(nX,nY,nWidth,nHeight,Visible)
-    expect(true,0,self,"terminal","blueprint")
+function terminal:create(nX,nY,nWidth,nHeight,Visible)
+    expect(true,0,self,"terminal")
     expect(false,1,nX,"number")
     expect(false,2,nY,"number")
     expect(false,3,nWidth,"number")
@@ -241,12 +240,9 @@ function terminal:Term(nX,nY,nWidth,nHeight,Visible)
         then
             self.children[select(2,util.table.find(self.children,instance))] = nil
             self = new_Parent
-            table.insert(new_Parent.children,instance)
+            table.insert(self.children,instance)
         end
-        if self ~= GUI
-        then
-            self:redraw()
-        end
+        self:redraw()
         return true
     end
     function instance.getABS()
@@ -254,8 +250,8 @@ function terminal:Term(nX,nY,nWidth,nHeight,Visible)
         local Px,Py = self:getABS()
         return Px+(x-1),Py+(y-1)
     end
-    function instance.isVisble()
-        if self:isVisble()
+    function instance.isVisible()
+        if self:isVisible()
         then
             return instance.visible
         end
@@ -264,13 +260,10 @@ function terminal:Term(nX,nY,nWidth,nHeight,Visible)
     function instance.redrawParent()
         return self:redraw()
     end
-    function instance.getParentSize()
-        return self:getSize()
-    end
     return instance
 end
 
--- just prepares the blueprint for use
+-- just prepares the Parent for use
 do
     for _,v in pairs(colors) do
         if type(v) == "number" and util.color.isColor(v)
@@ -301,7 +294,7 @@ function window:clearLine()
 end
 function window:getCursorBlink()
     expect(true,0,self,"window")
-    return self.Cursor.blink
+    return self.Cursor.Blink
 end
 function window:getCursorPos()
     expect(true,0,self,"window")
@@ -327,7 +320,7 @@ end
 ---@diagnostic disable-next-line: duplicate-set-field
 function window:redraw()
     expect(true,0,self,"window")
-    if self:isVisble()
+    if self:isVisible()
     then
         local CBG,CTG = native.getBackgroundColor(),native.getTextColor()
         restorePallet(self)
@@ -366,7 +359,7 @@ function window:redraw()
 end
 function window:redrawLine()
     expect(true,0,self,"window")
-    if self:isVisble()
+    if self:isVisible()
     then
         local CBG,CTG = native.getBackgroundColor(),native.getTextColor()
         local y = select(2,self:getCursorPos())
@@ -409,7 +402,7 @@ function window:redrawLine()
 end
 function window:restoreCursor()
     expect(true,0,self,"window")
-    if self:isVisble()
+    if self:isVisible()
     then
         restorePallet(self)
         native.setBackgroundColor(self:getBackgroundColor())
@@ -425,18 +418,16 @@ function window:restoreCursor()
 end
 ---comment
 ---@param _n number
-function window:setOFFX(_n)
-    expect(false,1,_n,"number")
-    range(1,_n,0,self:getSize())
-    self.window.Offset.x = _n
-    self:redraw()
-end
----comment
----@param _n number
-function window:setOFFY(_n)
-    expect(false,1,_n,"number")
-    range(1,_n,0,self:getSize())
-    self.window.Offset.y = _n
+function window:setOffset(offX,offY)
+    expect(false,1,offX,"number","nil")
+    expect(false,2,offY,"number","ni.")
+    do
+        local SizeX,SizeY = self:getSize()
+        offX = offX and range(1,offX,0,SizeX) or offX
+        offY = offY and range(2,offY,0,SizeY) or offY
+    end
+    self.window.Offset.x = offX or self.window.Offset.x
+    self.window.Offset.y = offY or self.window.Offset.y
     self:redraw()
 end
 ---comment
@@ -460,15 +451,15 @@ end
 ---@param nY number
 function window:setCursorPos(nX,nY)
     expect(true,0,self,"window")
-    expect(false,1,nX,"number")
-    expect(false,2,nY,"number")
+    expect(false,1,nX,"number","nil")
+    expect(false,2,nY,"number","nil")
     do
         local x,y = self:getSize()
-        range(1,nX,1,x)
-        range(2,nY,1,y)
+        nX = nX and range(1,nX,1,x)
+        nY = nY and range(1,nY,1,y)
     end
-    self.Cursor.pos.x = nX
-    self.Cursor.pos.y = nY
+    self.Cursor.pos.x = nX or self.Cursor.pos.x
+    self.Cursor.pos.y = nY or self.Cursor.pos.y
 end
 ---comment
 ---@param color number
@@ -480,55 +471,88 @@ end
 ---comment
 ---@param sText string
 ---@param bOverWrite boolean
-function window:write(sText,bOverWrite)
+---@param keepPos boolean|nil
+function window:write(sText,bOverWrite,keepPos)
     expect(true,0,self,"window")
     expect(false,1,sText,"string")
     expect(false,2,bOverWrite,"boolean","nil")
-    local result = {}
+    local result = util.string.split(sText)
     local flagLines = false
     local X,Y = self:getCursorPos()
-    for letter in sText:gmatch(".") do table.insert(result, letter) end
     do
         --- writes the sentece to the table
         -- one charator at a time
+        local flagOffset = false
         self.lines[Y] = self.lines[Y] or {}
         local offX,offY = self:getOffset()
+        local windowlengh = self:getSize()
         local CB,CT = self:getBackgroundColor(),self:getTextColor()
-        for x=1,#sText do
+        for index=1,#sText do
             if not self.lines[Y+offY]
             then
                 self.lines[Y+offY] = {}
             end
-            if result[x] == "\b"
+            if result[index] == "\b"
             then
+                if X == windowlengh and offX > 0
+                then
+                    offX = offX - 1
+                elseif X > 1
+                then
+                    X = X - 1
+                end
                 table.remove(self.lines[Y+offY],(X+offX))
-            elseif result[x] == "\n"
+            elseif result[index] == "\n"
             then
                 Y = Y + 1
                 X = 1
                 flagLines = true
                 self.lines[Y+offY] = self.lines[Y+offY] or {}
+                if offX > 0
+                then
+                    offX = 0
+                    flagOffset = true
+                end
             elseif not bOverWrite
             then
                 table.insert(self.lines[Y+offY],(X+offX),{
-                    Char = result[x],
+                    Char = result[index],
                     color = {back = CB,text = CT}
                 })
-                X = X + 1
+                if X == windowlengh
+                then
+                    offX = offX + 1
+                    flagOffset = true
+                else
+                    X = X + 1
+                end
             else
                 self.lines[Y+offY][X+offX] = {
-                    Char = result[x],
+                    Char = result[index],
                     color = {back = CB,text = CT}
                 }
-                X = X + 1
+                if X == windowlengh
+                then
+                    offX = offX + 1
+                    flagOffset = true
+                else
+                    X = X + 1
+                end
             end
         end
-        self:setCursorPos(X,Y)
+        if flagOffset
+        then
+            self:setOFFX(offX)
+        end
+        if not keepPos
+        then
+            self:setCursorPos(X,Y)
+        end
     end
     -- requests a redraw
-    if self:isVisble()
+    if self:isVisible()
     then
-        if not flagLines --runs if  means more then one line was effected
+        if not flagLines -- dose not runs if only one line was effected
         then
             self:redrawLine()
         else
@@ -536,10 +560,9 @@ function window:write(sText,bOverWrite)
         end
     end
 end
-
 ---comment
 ---@param self terminal
-function terminal:make_Window()
+function terminal:make_textBox()
     expect(true,0,self,"terminal")
     do
         local meta = getmetatable(self) or {}
@@ -551,7 +574,7 @@ function terminal:make_Window()
     self.window.Offset.x = 0
     self.window.Offset.y = 0
     self.lines = {}
-    self.Cursor = {pos = {x = 1,y = 1},blink = false}
+    self.Cursor = {pos = {x = 1,y = 1},Blink = false}
     self.color.text = colors.black
     self.pixels = nil
     self.children = nil
@@ -577,7 +600,7 @@ function button:setText(sText)
     self.text = sText
 end
 function button:redraw()
-    if self.self:isVisble()
+    if self.self:isVisible()
     then
         local SX,SY = self.self:getSize()
         local APX,APH = self.self:getABS()
@@ -659,18 +682,353 @@ function terminal:make_button(bToggle)
     return ID
 end
 --progress Bar
-local bar = setmetatable({},{__index = terminal})
+local progress_bar = setmetatable({},{__index = terminal})
 ---@diagnostic disable-next-line: duplicate-set-field
-function bar:redraw()
+function progress_bar:redraw()
+    local orginBackgroundColor = native.getBackgroundColor()
+    local x = self:getSize()
+    local count = math.floor((self.checkpoints_filled/self.checkpoints)*x)
+    native.setCursorPos(self.getABS())
+    native.setBackgroundColor(self:getBackgroundColor())
+    native.write(("\t"):rep(x))
+    native.setBackgroundColor(self.color.filled)
+    native.setCursorPos(self.getABS())
+    native.write(("\t"):rep(count))
+    native.setBackgroundColor(orginBackgroundColor)
 end
-function bar:nextcheck(_n)
+---comment
+---@param _n number|nil
+function progress_bar:checkPoint(_n)
+    expect(false,1,_n,"number","nil")
+    if self.checkpoints == self.checkpoints_filled
+    then
+        error("can't go beyond 100%",2)
+    end
+    self.checkpoints_filled = self.checkpoints_filled + (_n or 1)
 end
-function bar:setnumCheckpoints(_n)
+function progress_bar:setfilledColor(color)
+    expect(false,1,color,"number")
+    self.color.filled = color
 end
-function terminal:progressBar()
+function terminal:make_progressBar(_nCheckpoints)
     expect(true,0,self,"terminal")
+    expect(false,1,_nCheckpoints,"number")
+    self.children = nil
+    self.pixels = nil
+    self.checkpoints = _nCheckpoints
+    self.checkpoints_filled = 0
+    self.color.filled = colors.blue
+    self:setBackgroundColor(colors.green)
+    setmetatable(self,{__index = progress_bar})
+    util.table.setType(self,"progress_bar")
 end
 
+function terminal:Usrinput(_sContent,Tblsettings)
+    expect(true,0,self,"terminal")
+    _sContent = expect(false,1,_sContent,"string,","nil") or ""
+    Tblsettings = expect(false,2,Tblsettings,"table","nil") or {}
+    Tblsettings.prompt = field(2,Tblsettings,"prompt","string","nil") or "Usr input Screen"
+    Tblsettings.BackgroundColor = field(2,Tblsettings,"BackgroundColor","number","nil") or colors.black
+    Tblsettings.textColor = field(2,Tblsettings,"textColor","number","nil") or colors.white
+    Tblsettings.autoBackground_Color = field(2,Tblsettings,"autoBackground_Color","number","nil") or colors.gray
+    Tblsettings.menu = field(2,Tblsettings,"menuoptions","table","nil") or {}
+    local getList = field(2,Tblsettings,"_fnAuotList","function","nil") or function (currentWord)
+        return nil
+    end
+    local speicalList = field(2,Tblsettings,"_SpeicalList","function","nil") or function (currentWord)
+        return nil
+    end
+    for _,v in pairs(Tblsettings.menu) do
+        xpcall(expect,function (_sMessage)
+            error(("Tblsettings.menu :%s"):format(_sMessage),3)
+        end,false,0,v,"function")
+    end
+    local CurrentAutoList,currentAutoSel = {},1
+    local flagAutoComplete = false
+    local prompt,Usrinput,oppMenu
+    local function retCurrentWord()
+        local Line,sentence = nil,""
+        do
+            local CursorPosY = select(1,Usrinput:getCursorPos())
+            Line = Usrinput.lines[CursorPosY] or {}
+        end
+        for _,obj in pairs(Line) do
+            sentence = sentence..obj.Char
+        end
+        Line = util.string.split(sentence,"\t")
+        return Line[#Line]
+    end
+    local function clearAuto()
+        local lengthAuto = #CurrentAutoList[currentAutoSel]
+        local CursorPosX,CursorPosY = Usrinput:getCursorPos()
+        Usrinput:setCursorPos(CursorPosX+lengthAuto,CursorPosY)
+        Usrinput:write(("\b"):rep(lengthAuto))
+        flagAutoComplete = false
+    end
+    local function autoFill(_nIndex,_nOffSet)
+        if not CurrentAutoList
+        then
+            return
+        end
+        _nIndex = _nIndex or 1
+        local stri = CurrentAutoList[_nIndex]
+        if not stri
+        then
+            return false
+        end
+        do
+            if _nOffSet and _nOffSet > #stri
+            then
+                return false
+            end
+            stri = table.concat(util.string.split(stri),"",_nOffSet or 1)
+        end
+        currentAutoSel = _nIndex
+        flagAutoComplete = true
+        Usrinput:setBackgroundColor(Tblsettings.autoBackground_Color)
+        Usrinput:write(stri,_nOffSet and true or false,not _nOffSet and true or false)
+        Usrinput:setBackgroundColor(Tblsettings.BackgroundColor)
+        return true
+    end
+    local run = true
+    local result = ""
+    Tblsettings.menu.exit = function ()
+        if flagAutoComplete
+        then
+            clearAuto()
+        end
+        for index,y in pairs(Usrinput.lines) do
+            if index > 1
+            then
+                result = result.."\n"
+            end
+            for _,x in pairs(y) do
+                result = result..x.Char
+            end
+        end
+        run = false
+    end
+    do -- builds the windows
+        local termSizeX,termSizeY = self:getSize()
+        prompt = self:create(1,1,termSizeX,1,true)
+        prompt:make_textBox()
+        prompt:setCursorPos(select(1,prompt:getCenter())-#Tblsettings.prompt/2,1)
+        prompt:write(Tblsettings.prompt)
+        Usrinput = self:create(1,2,termSizeX,termSizeY-1,true)
+        Usrinput:make_textBox()
+        Usrinput:setCursorBlink(true)
+        Usrinput:setBackgroundColor(Tblsettings.BackgroundColor)
+        Usrinput:setTextColor(Tblsettings.textColor)
+        local term_CenterX,term_CenterY = self:getCenter()
+        local menuCount = 4
+        for _,_ in pairs(Tblsettings.menu) do
+            menuCount = menuCount + 1
+        end
+        oppMenu = self:create(term_CenterX-5,term_CenterY-menuCount/2,10,menuCount)
+    end
+    do -- puts the content into the Usrinput textBox
+        local result_contect = util.string.split(_sContent)
+        for _,char in pairs(result_contect) do
+            Usrinput:write(char,nil,true)
+        end
+    end
+    local auto_depth = 0 -- for autoComplete_managment
+    local keyHandle = {
+        [keys.up] = function ()
+            if flagAutoComplete
+            then
+            else
+                local CursorPosX,CursorPosY = Usrinput:getCursorPos()
+                local offset = select(2,Usrinput:getOffset())
+                if CursorPosY == 1 and offset > 0
+                then
+                    Usrinput:setOffset(nil,offset - 1)
+                elseif CursorPosY > 1
+                then
+                    Usrinput:setCursorPos(CursorPosX,CursorPosY - 1)
+                end
+            end
+        end,
+        [keys.down] = function ()
+            if flagAutoComplete
+            then
+            else
+                local CursorPosX,CursorPosY = Usrinput:getCursorPos()
+                local windowHeight = select(2,Usrinput:getSize())
+                local offset = select(2,Usrinput:getOffset())
+                if Usrinput.lines[CursorPosY+offset+1]
+                then
+                    if CursorPosY  == windowHeight
+                    then
+                        Usrinput:setOffset(nil,offset+1)
+                    else
+                        Usrinput:setCursorPos(CursorPosX,CursorPosY+1)
+                    end
+                end
+            end
+        end,
+        [keys.left] = function ()
+            if flagAutoComplete
+            then
+            else
+                local CursorPosX,CursorPosY = Usrinput:getCursorPos()
+                local Offset = Usrinput:getOffset()
+                if CursorPosX == 1 and Offset > 0
+                then
+                    Usrinput:setOffset(Offset-1)
+                elseif CursorPosX > 1
+                then
+                    Usrinput:setCursorPos(CursorPosX-1,CursorPosY)
+                end
+            end
+        end,
+        [keys.right] = function ()
+            if flagAutoComplete
+            then
+            else
+                local CursorPosX,CursorPosY = Usrinput:getCursorPos()
+                local windowlengh = Usrinput:getSize()
+                local OffsetX,OffsetY = Usrinput:getOffset()
+                if Usrinput.lines[CursorPosY+OffsetY][CursorPosX+OffsetX+1]
+                then
+                    if CursorPosX == windowlengh
+                    then
+                        Usrinput:setOffset(OffsetX+1)
+                    else
+                        Usrinput:setCursorPos(CursorPosX+1,CursorPosY)
+                    end
+                end
+            end
+        end,
+        [keys.leftCtrl] = function ()
+            parallel.waitForAny(function ()
+                while true do
+                    local Events = select(2,os.pullEventRaw("key"))
+                    if Events == keys.leftCtrl
+                    then
+                        oppMenu:setVisible(false)
+                        self:redraw(true)
+                        break
+                    end
+                end
+            end,function ()
+                local list = {}
+                for name,_ in pairs(Tblsettings.menu) do
+                    table.insert(list,name)
+                end
+                local choice = list[oppMenu:run_list(list)]
+                choice = Tblsettings.menu[choice]
+                choice()
+            end)
+        end,
+        [keys.backspace] = function ()
+            if flagAutoComplete
+            then
+                clearAuto()
+            end
+            local CursorPosX,CursorPosY = Usrinput:getCursorPos()
+            if CursorPosX == 1 and CursorPosY > 1
+            then
+                local OffsetY = select(2,Usrinput:getOffset())
+                local lastLineLength = #Usrinput.lines[CursorPosY+OffsetY-1]
+                local windowlengh = select(2,Usrinput:getSize())
+                if OffsetY > 0
+                then
+                    OffsetY = OffsetY - 1
+                    Usrinput:setOffset(nil,OffsetY)
+                else
+                    Usrinput:setCursorPos(nil,CursorPosY-1)
+                end
+                if lastLineLength > windowlengh
+                then
+                    Usrinput:setOffset(lastLineLength-windowlengh)
+                    Usrinput:setCursorPos(windowlengh)
+                else
+                    Usrinput:setCursorPos(lastLineLength+1)
+                end
+                Usrinput:write("\b")
+            end
+            Usrinput:write("\b")
+        end,
+        [keys.tab] = function ()
+            if flagAutoComplete
+            then
+                local auto_result
+                do
+                    local auto_word = CurrentAutoList[currentAutoSel]
+                    local compare = #auto_word-auto_depth
+                    auto_result = table.concat(util.string.split(auto_word),"",compare)
+                end
+                Usrinput:write(auto_result,true)
+                auto_depth = 0            
+                flagAutoComplete = false
+            end
+        end,
+        [keys.enter] = function ()
+            if flagAutoComplete
+            then
+                clearAuto()
+            end
+            Usrinput:write("\n")
+        end,
+        [keys.home] = function ()
+            if flagAutoComplete
+            then
+                clearAuto()
+            end
+            local CursorPosY = select(2,Usrinput:getCursorPos())
+            if select(1,Usrinput:getOffset()) > 0
+            then
+                Usrinput:setOffset(0)
+            end
+            Usrinput:setCursorPos(1,CursorPosY)
+        end,
+        [keys["end"]] = function ()
+            if flagAutoComplete
+            then
+                clearAuto()
+            end
+            local XoffSet = select(2,Usrinput:getOffset())
+            
+        end,
+        [keys.delete] = function ()
+        end
+    }
+    parallel.waitForAny(function ()
+        while true do
+            Usrinput:restoreCursor()
+            coroutine.yield()
+        end
+    end,function ()
+        while run do
+            local Events = table.pack(os.pullEventRaw())
+            if Events[1] == "char" and not flagAutoComplete
+            then
+                if flagAutoComplete
+                then
+                    clearAuto()
+                end
+                Usrinput:write(Events[2])
+                CurrentAutoList = getList(retCurrentWord())
+                autoFill()
+            elseif Events[1] == "key"
+            then
+                local fn = keyHandle[Events[2]] 
+                if fn
+                then
+                    fn()
+                end
+            elseif Events[1] == "mouse_click" and not flagAutoComplete
+            then
+            end
+        end
+    end)
+    if result == "\n"
+    then
+        return ""
+    end
+    return result
+end
 
 --[[
     built in functions
@@ -693,74 +1051,78 @@ function terminal:prompt(mess,Tblsettings)
     self:setVisible(true)
     local sX,sY = self:getSize()
     range(0,sY,2)
-    local prompt  = (self:Term(1,1,sX,1,true))
-    prompt:make_Window()
-    prompt:setBackgroundColor(Tblsettings.BPC or colors.blue)
+    local prompt  = self:create(1,1,sX,1,true)
+    prompt:make_textBox()
+    prompt:setBackgroundColor(Tblsettings.BTC or colors.blue)
     prompt:setTextColor(Tblsettings.PC or colors.white)
     do
         local Cx = select(1,prompt:getCenter())
         prompt:setCursorPos(math.floor(Cx-(#mess/2)+1),1)
     end
     prompt:write(mess)
-    local input = self:Term(1,2,sX,sY,true)
-    input:make_Window()
+    local input = self:create(1,2,sX,sY,true)
+    input:make_textBox()
     input:setBackgroundColor(Tblsettings.BTC or colors.gray)
+    input:setCursorBlink(true)
     input:setTextColor(Tblsettings.TC or colors.white)
     input:redraw()
     input:setCursorBlink(true)
-    while true do
-        local event = table.pack(os.pullEvent())
-        if self:isVisble()
-        then
-            if event[1] == "char"
+    parallel.waitForAny(function ()
+        while true do
+            input:restoreCursor()
+            coroutine.yield()
+        end
+    end,function ()
+        while true do
+            local event = table.pack(os.pullEvent())
+            if self:isVisible()
             then
-                local CX,CY = input:getCursorPos()
-                if CX <= sX and CY <= sY
+                if event[1] == "char"
                 then
-                    input:write(event[2],true)
-                    CX = CX + 1
-                    if CX > sX
-                    then
-                        CX = 1
-                        CY = CY + 1
-                    end
+                    local CX,CY = input:getCursorPos()
                     if CX <= sX and CY <= sY
                     then
-                        input:setCursorPos(CX,CY)
-                    end
-                end
-            elseif event[1] == "key"
-            then
-                local CX,CY = input:getCursorPos()
-                if event[2] == keys.backspace
-                then
-                    input:write("\b")
-                    if CX-1 >= 1
-                    then
-                        input:setCursorPos(CX-1,CY)
-                    elseif CX == 1 and CY-1 >= 1
-                    then
-                        input:setCursorPos(sX,CY-1)
-                    end
-                elseif event[2] == keys.enter
-                then
-                    local Temp = ""
-                    for _,v in pairs(input.lines) do
-                        for _,b in pairs(v) do
-                            Temp = Temp..b.Char
+                        input:write(event[2],true)
+                        CX = CX + 1
+                        if CX > sX
+                        then
+                            CX = 1
+                            CY = CY + 1
+                        end
+                        if CX <= sX and CY <= sY
+                        then
+                            input:setCursorPos(CX,CY)
                         end
                     end
-                    return Temp
+                elseif event[1] == "key"
+                then
+                    if event[2] == keys.backspace
+                    then
+                        input:write("\b")
+                    elseif event[2] == keys.enter
+                    then
+                        local Temp = ""
+                        for _,v in pairs(input.lines) do
+                            for _,b in pairs(v) do
+                                Temp = Temp..b.Char
+                            end
+                        end 
+                        return Temp
+                    end
                 end
             end
         end
-    end
+    end)
 end
 
 -- you only get this api if you are a advance computer
 -- it only uses the mouse_click event 
 if native.isColor()
 then
+    ---comment
+    ---@param bnot_Loop boolean|nil
+    ---@param ... table|button
+    ---@return unknown
     function GUI.buttonRun(bnot_Loop,...)
     expect(false,1,bnot_Loop,"boolean")
     local Pages = {}
@@ -822,7 +1184,7 @@ then
                         local Px,Py = v.self:getABS()
                         local Sx,SY = v.self:getSize()
                         local x,y = event[3],event[4]
-                        if x >= Px and x <= (Sx+Px)-1 and y >= Py and y <= (SY+Py)-1 and v:isVisble()
+                        if x >= Px and x <= (Sx+Px)-1 and y >= Py and y <= (SY+Py)-1 and v:isVisible()
                         then
                             if v.self.toggle
                             then
@@ -855,6 +1217,7 @@ then
     end
 end
 
+
 ---comment
 ---@param self terminal
 ---@param OTbl table|terminal
@@ -885,18 +1248,16 @@ function terminal:run_list(OTbl,TblSettings)
     then
         error("table is empty",2)
     end
+    self:setVisible(true)
     local x,y = self:getSize()
     range(0,y,2)
     local Pages = {{}}
-    local textWindow = self:Term(1,1,x,1)
-    self:setVisible(true)
-    textWindow:make_Window()
-    textWindow:setVisible(true)
-    local canv = self:Term(1,2,x,y-2)
-    canv:setVisible(true)
+    local textWindow = self:create(1,1,x,1,true)
+    textWindow:make_textBox()
+    local canv = self:create(1,2,x,y-2,true)
     canv:setBackgroundColor(self:getBackgroundColor())
-    local Page = self:Term(1,y,x,1,true)
-    Page:make_Window()
+    local Page = self:create(1,y,x,1,true)
+    Page:make_textBox()
     Page:setBackgroundColor(TblSettings.MBC or colors.white)
     Page:setTextColor(TblSettings.MTC or colors.black)
     do -- sperates the tbl into pages
@@ -909,7 +1270,7 @@ function terminal:run_list(OTbl,TblSettings)
                 PagesCount = PagesCount + 1
                 Pages[PagesCount] = {}
             end
-            local temp = canv:Term(1,Cy,x,1,true)
+            local temp = canv:create(1,Cy,x,1,true)
             temp:make_button()
             temp.selected:setText(v)
             temp.default:setText(v)
@@ -941,7 +1302,7 @@ function terminal:run_list(OTbl,TblSettings)
             Page:write(("Page %s of %s"):format(CurrentPage,otpLen))
         else
             Page:write(("%s/%s"):format(CurrentPage,otpLen))
-        end 
+        end
         Page:setCursorPos(1,1)
     end
     do -- builds the page indacator
@@ -950,22 +1311,16 @@ function terminal:run_list(OTbl,TblSettings)
         then
             Page:write(stri)
         else
-            stri = ("%s/%s"):format(1,otpLen)
-            if #stri <= select(1,Page:getSize())
-            then
-                Page:write(stri)
-            else
-                Page:write("%s/%s"):format(1,Pages)
-                smallScreen = true
-            end
+            Page:write(("%s/%s"):format(1,otpLen))
+            smallScreen = true
         end
         Page:setCursorPos(1,1)
     end
     if otpLen > 1 and GUI.buttonRun
     then
         textWindow.reposition(2,1,x-1,1)
-        left = self:Term(1,1,1,1)
-        right = self:Term(x,1,1,1)
+        left = self:create(1,1,1,1,true)
+        right = self:create(x,1,1,1,true)
         left:make_button(false)
         right:make_button(false)
         left.default:setText("<")
@@ -1009,7 +1364,7 @@ function terminal:run_list(OTbl,TblSettings)
     local function start()
         local run = true
         while run do
-            if self:isVisble()
+            if self:isVisible()
             then
                 local event = {os.pullEventRaw()}
                 if event[1] == "key"

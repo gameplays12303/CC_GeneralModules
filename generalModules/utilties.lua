@@ -20,10 +20,12 @@ function utilties.string.split(inputstr, sep,_bkeepdelimiters)
       expect(1,inputstr,"string")
       expect(2,sep,"string","nil")
       expect(3,_bkeepdelimiters,"boolean","nil")
-      if sep == nil then
-          sep = "%s"
-      end
       local t={}
+      if not sep
+      then
+            for char in inputstr:gmatch(".") do table.insert(t, char) end
+            return t
+      end
       if not _bkeepdelimiters
       then
             for str in string.gmatch(inputstr, "([^"..sep.."]+)") do
@@ -372,4 +374,3 @@ function utilties.table.get_hash(Tbl)
       return meta.hash or tostring(Tbl):match("table: (%x+)")
 end
 return utilties
-  

@@ -96,12 +96,18 @@ function handle.require(_sPath,_Env,bReload)
             end
         end
     end
-    local SFn = fm.readFile(Path,"R")
-    local fn,err = load(SFn,"@"..Path,"bt",_Env or setmetatable({["mReq"] = handle,["require"] = handle.require},{__index = _G}))
+    _Env = _Env or {["mReq"] = handle,["require"] = handle.require}
+    do
+        local meta = getmetatable(_Env) or {}
+        meta.__index = _G
+        setmetatable(_Env,meta)
+    end
+    local fn,err = loadfile(Path,"bt",_Env)
     if not fn
     then
         error(err,0)
     end
+    ---@diagnostic disable-next-line: param-type-mismatch
     local ok = table.pack(pcall(fn))
     if not ok[1]
     then

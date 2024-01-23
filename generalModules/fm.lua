@@ -34,7 +34,7 @@ end
 ---@overload fun(sPath:string,mode:string)
 function fm.readFile(sPath,mode)
     expect(false,1,sPath,"string")
-    expect(false,3,mode,"string")
+    expect(false,3,mode,"string","nil")
     mode = mode or "S"
     if mode ~= "S" and mode ~= "R"
     then
