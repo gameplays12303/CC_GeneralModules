@@ -96,7 +96,9 @@ function handle.require(_sPath,_Env,bReload)
             end
         end
     end
-    _Env = _Env or {["mReq"] = handle,["require"] = handle.require}
+    _Env = _Env or {}
+    _Env["require"] = handle.require
+    _Env["mReq"] = handle
     do
         local meta = getmetatable(_Env) or {}
         meta.__index = _G

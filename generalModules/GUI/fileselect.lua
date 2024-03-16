@@ -1,6 +1,7 @@
 local util = require and require("generalModules.utilties") or dofile("generalModules/utilties.lua")
 local expect = (require and require("generalModules.expect2") or dofile("generalModules/expect2.lua")).expect
 return function (terminal,_sStartDir,message,AccpetFiles,AccpetDirs)
+    
     expect(true,1,terminal,"terminal","nil")
     _sStartDir = expect(false,2,_sStartDir,"string","nil") or ""
     expect(false,3,message,"string","nil")
@@ -27,7 +28,7 @@ return function (terminal,_sStartDir,message,AccpetFiles,AccpetDirs)
     end
     if not terminal.run_list
     then
-        error("nessary function missing",2)
+        error("nessary function missing argument #0",2)
     end
     if not fs.exists(_sStartDir)
     then
@@ -45,7 +46,6 @@ return function (terminal,_sStartDir,message,AccpetFiles,AccpetDirs)
             table.insert(list,"back")
         end
         table.insert(list,"exit()")
-        
         local fileselected = list[terminal:run_list(list,{message = ("CurrentDir:%s:%s"):format(dir,message)})]
         if fileselected == "exit()"
         then

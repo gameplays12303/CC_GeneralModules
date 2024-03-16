@@ -18,7 +18,7 @@ return function (_sDir,limit)
     return function (_sName,bOverWrite)
         expect(1,_sName,"string")
         expect(2,bOverWrite,"boolean","nil")
-        local Path
+        local Path,note
         local closed = false
         _sName = util.file.withoutExtension(fs.getName(_sName))
         if fs.exists(("%s/%s(1).log"):format(_sDir,_sName)) and not bOverWrite
@@ -28,7 +28,12 @@ return function (_sDir,limit)
             then
                 info = {}
             else
-                info = fm.readFile(managment,"S") or {}
+                info = fm.readFile(managment,"S")
+            end
+            if not info
+            then
+                note = true
+                info = {}
             end
             if info[_sName] and info[_sName].created >= limit
             then
@@ -62,15 +67,34 @@ return function (_sDir,limit)
             error(err,0)
         end
         local handle = {}
-        ---@overload fun(info:string)
-        function handle.info(info)
+        ---comment
+        ---@param info string
+        function handle.Info(info)
             expect(1,info,"string")
-            file.write(("info:%s:%s\n"):format(os.date(),info))
+            file.write(("Info:%s:%s\n"):format(os.date(),info))
         end
-        ---@overload fun(err:string)
-        function handle.error(err)
+        ---comment
+        ---@param info string
+        function handle.Warn(info)
+            expect(1,info,"string")
+            file.write(("Warn:%s:%s\n"):format(os.date(),info))
+        end
+        ---comment
+        ---@param err string
+        ---@diagnostic disable-next-line: redefined-local
+        function handle.Error(err)
             expect(1,err,"string")
-            file.write(("error:%s:%s\n"):format(os.date(),err))
+            file.write(("Error:%s:%s\n"):format(os.date(),err))
+        end
+        ---comment
+        ---@param info string
+        function handle.Fatal(info)
+            expect(1,info,"string")
+            file.write(("Fatal:%s:%s\n"):format(os.date(),info))
+        end
+        if note
+        then
+            handle.error("check logging system , the system will contiune but logging files will not stop at the limit")
         end
         function handle.isClosed()
             return closed

@@ -54,7 +54,10 @@ handle.expect = function (_bClasses,index,var,...)
             end
         end
     end
-    error(("argument #%s expected %s: got %s"):format(index,listerror({...}),getType(var,_bClasses)),3)
+    if debug then -- if we can get the name of the called function then lets include it
+    else
+        error(("argument #%s expected %s: got %s"):format(index,listerror({...}),getType(var,_bClasses)),3)
+    end
 end
 ---comment
 ---@param index number

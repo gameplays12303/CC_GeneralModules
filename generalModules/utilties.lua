@@ -2,7 +2,10 @@
 -- this code dose not have a decated purpose
 -- it is just simple code that i would use multipul times 
 
-local expect = (require and require("cc.expect") or dofile("rom/modules/main/cc/expect.lua")).expect
+local expect = (require and require("generalModules.expect2") or dofile("generalModules/expect2.lua"))
+local blacklist = expect.blacklist
+---@diagnostic disable-next-line: cast-local-type
+expect = expect.expect
 local fs,string,table = fs,string,table
 local setmetatable = setmetatable
 local getmetatable = getmetatable
@@ -17,9 +20,9 @@ utilties.file = {}
 ---@param _bkeepdelimiters boolean|nil
 ---@return table
 function utilties.string.split(inputstr, sep,_bkeepdelimiters)
-      expect(1,inputstr,"string")
-      expect(2,sep,"string","nil")
-      expect(3,_bkeepdelimiters,"boolean","nil")
+      expect(false,1,inputstr,"string")
+      expect(false,2,sep,"string","nil")
+      expect(false,3,_bkeepdelimiters,"boolean","nil")
       local t={}
       if not sep
       then
@@ -43,74 +46,133 @@ end
 ---@param _nTSX number
 ---@param _sMessage string
 function utilties.string.wrap(_nTSX,_sMessage,_nCPX)
-      expect(1,_nTSX,"number")
-      expect(2,_sMessage,"string")
-      _nCPX = expect(3,_nCPX,"number","nil") or 1
-      local list = utilties.string.split(_sMessage,nil,true)
+      expect(false,1,_nTSX,"number")
+      expect(false,2,_sMessage,"string")
+      _nCPX = expect(false,3,_nCPX,"number","nil") or 1
+      local list = utilties.string.split(_sMessage," ",true)
       do
             local result = {}
             for i,v in pairs(list) do
-                  result[i] = {}
-                  for letter in string.gmatch(v,".") do table.insert(result[i], letter) end
+                  result[i] = utilties.string.split(v)
             end
             list = result
+      end
+      if true 
+      then
+            return list
       end
       local results = ""
       local Sy = 1
       local CXP = 0
       local index = 1
-      local function next()
+      local function nextChar()
             index = index + 1
       end
-      local function AddAndReset()
+      local function nextLine()
             CXP = 0
             Sy = Sy + 1
+      end
+      local function AddAndReset()
+            nextLine()
             results = results.."\n"
       end
       while index <= #list do
-            local v = list[index]
-            if #v > _nTSX
+            local char = list[index]
+            if #char > _nTSX
             then
                   for _,s in pairs(v) do
                         CXP = CXP + 1
-                        if CXP > _nTSX
+                        if CXP > _nTSX and s ~= "\n"
                         then
                               AddAndReset()
                         end
                         results = results..s
                   end
-                  next()
-            elseif #v+CXP > _nTSX
+                  nextChar()
+            elseif #char+CXP > _nTSX and char ~= "\n"
             then
                   AddAndReset()
             else
-                  results = results..table.concat(v,"")
-                  CXP = CXP + #v
-                  next()
+                  results = results..table.concat(char,"")
+                  CXP = CXP + #char
+                  nextChar()
             end
       end
       return results,Sy
+end
+---comment
+---@param _data any
+---@param _Index any
+---@return string|unknown
+function utilties.string.Serialise(_data,_Index)
+      blacklist(false,1,_data,"thread","function","userdata")
+      _Index =  expect(false,2,_Index,"number","nil") or 0
+      local indexGag = ("\t"):rep(_Index)
+      local handle = {
+          ["boolean"] = function ()
+              return tostring(_data)
+          end,
+          ["string"] = function ()
+              return "\"".._data.."\""
+          end,
+          ["table"] = function ()
+              local result = "{\n"
+              for i,v in pairs(_data) do
+                  if type(v) ~= "table" or not util.table.selfReferencing(v)
+                  then
+                      if type(i) == "string"
+                      then
+                          if string.find(i,"%p") ~= nil
+                          then
+                              result = result.."\t"..indexGag..("[\"%s\"] = "):format(i)..Serialise(v,_Index+1)..",\n"
+                          else
+                              result = result.."\t"..indexGag..("%s = "):format(i)..Serialise(v,_Index+1)..",\n"
+                          end
+                      else
+                          result = result.."\t"..indexGag..Serialise(v,_Index+1)..",\n"
+                      end
+                  end
+              end
+              return result..indexGag.."}"
+          end,
+      }
+      handle["number"] = handle["boolean"]
+      return handle[type(_data)]()
+end
+---comment
+---@param _sData string
+---@return unknown
+function utilties.string.Unserialise(_sData)
+expect(false,1, _sData, "string")
+local func,err = load("return " .. _sData, "unserialize","t",{})
+if func then
+      local ok, result = pcall(func)
+      if ok then
+            return result
+      end
+end
+return error(err,2)
 end
 -- fs addons
 ---comment
 ---@param sPath string
 ---@return number
 function utilties.file.created(sPath)
-      expect(1,sPath,"string")
+      expect(false,1,sPath,"string")
       return fs.attributes(sPath).created
 end
 ---comment
 ---@param sPath string
 ---@return number
 function utilties.file.modified(sPath)
-      expect(1,sPath,"string")
+      expect(false,1,sPath,"string")
       return fs.attributes(sPath).modified
 end
 ---comment
 ---@param _sfile string
 ---@return string
 function utilties.file.getExtension(_sfile)
-      expect(1,_sfile,"string")
+      expect(false,1,_sfile,"string")
       local Table = utilties.string.split(_sfile,"%.")
       return Table[2]
 end
@@ -118,14 +180,14 @@ end
 ---@param _sPath string
 ---@return string
 function utilties.file.getRoot(_sPath)
-      expect(1,_sPath,"string")
+      expect(false,1,_sPath,"string")
       return utilties.string.split(_sPath,"/")[1]
 end
 ---comment
 ---@param _sfile string
 ---@return string
 function utilties.file.withoutExtension(_sfile)
-      expect(1,_sfile,"string")
+      expect(false,1,_sfile,"string")
       local Table = utilties.string.split(_sfile,"%.")
       return Table[1]
 end
@@ -137,11 +199,11 @@ end
 ---@param showRom boolean|nil
 ---@return table
 function utilties.file.listsubs(sPath,showFiles,showDirs,showRootDir,showRom)
-      expect(1,sPath,"string")
-      expect(2,showFiles,"boolean","nil")
-      expect(3,showDirs,"boolean","nil")
-      expect(5,showRootDir,"boolean","nil")
-      expect(6,showRom,"boolean","nil")
+      expect(false,1,sPath,"string")
+      expect(false,2,showFiles,"boolean","nil")
+      expect(false,3,showDirs,"boolean","nil")
+      expect(false,5,showRootDir,"boolean","nil")
+      expect(false,6,showRom,"boolean","nil")
       showDirs = showDirs or showRootDir
       if not fs.exists(sPath) then
             error("Could not find"..fs.getName(sPath),2)
@@ -193,10 +255,10 @@ end
 ---@param showDirs boolean|nil
 ---@return table
 function utilties.file.list(sPath,showFiles,showDirs,showPath)
-      expect(1,sPath,"string")
-      expect(2,showFiles,"boolean","nil")
-      expect(3,showDirs,"boolean","nil")
-      expect(4,showPath,"boolean","nil")
+      expect(false,1,sPath,"string")
+      expect(false,2,showFiles,"boolean","nil")
+      expect(false,3,showDirs,"boolean","nil")
+      expect(false,4,showPath,"boolean","nil")
       if not fs.exists(sPath)
       then
             error(("%s : not found"):format(sPath),3)
@@ -228,7 +290,7 @@ end
 ---@param path string
 ---@return string
 function utilties.file.getDir(path)
-      expect(1,path,"string")
+      expect(false,1,path,"string")
       if fs.getDir(path) == ".."
       then
             return ""
@@ -241,7 +303,7 @@ utilties.color = {}
 ---@param color number
 ---@return boolean
 function utilties.color.isColor(color)
-      expect(1,color,"number")
+      expect(false,1,color,"number")
       for i,v in pairs(colors) do
             if v == color
             then
@@ -256,7 +318,7 @@ end
 ---@param ID any
 ---@return unknown
 function utilties.table.find(base,ID)
-      expect(1,base,"table")
+      expect(false,1,base,"table")
       for i,v in pairs(base) do
             if type(v) == "string" and type(ID) == "string"
             then
@@ -272,8 +334,8 @@ function utilties.table.find(base,ID)
       return false
 end
 function utilties.table.selfReferencing(base,search)
-expect(1,base,"table")
-search =  expect(1,search,"table","nil") or base
+expect(false,1,base,"table")
+search =  expect(false,1,search,"table","nil") or base
 local info  = (getmetatable(base) or {}).__index
 if type(info) == "function"
 then
@@ -300,9 +362,9 @@ end
 ---@param copyAll boolean|nil
 ---@return table
 function utilties.table.copy(Table,copymetatable,proxy,copyAll)
-expect(1,Table,"table")
-expect(2,copymetatable,"boolean","nil")
-expect(3,proxy,"table","nil")
+expect(false,1,Table,"table")
+expect(false,2,copymetatable,"boolean","nil")
+expect(false,3,proxy,"table","nil")
 proxy = proxy or {}
 local metatable = getmetatable(Table)
 for k,v in pairs(Table) do
@@ -329,8 +391,8 @@ end
 ---@param _nTransfer number
 ---@return table
 function utilties.table.transfer(base,_nTransfer)
-      expect(1,base,"table")
-      expect(2,_nTransfer,"number")
+      expect(false,1,base,"table")
+      expect(false,2,_nTransfer,"number")
       local CIndex = _nTransfer
       local result = {}
       while CIndex <= _nTransfer do
@@ -342,18 +404,26 @@ end
 
 local function temp(self)
       local meta = getmetatable(self)
+      if not meta.hash
+      then
+            return meta.type
+      end
       return ("%s: (%s)"):format(meta.type,meta.hash)
 end
 ---comment
 ---@param Tbl table
 ---@param Type string
+---@param keepHash boolean|nil
 ---@return table
-function utilties.table.setType(Tbl,Type)
-      expect(1,Tbl,"table")
-      expect(2,Type,"string")
+function utilties.table.setType(Tbl,Type,keepHash)
+      expect(false,1,Tbl,"table")
+      expect(false,2,Type,"string")
       local meta = getmetatable(Tbl) or {}
       meta.type = Type
-      meta.hash = utilties.table.get_hash(Tbl)
+      if keepHash or keepHash == nil
+      then
+            meta.hash = utilties.table.get_hash(Tbl)
+      end
       meta.__tostring = temp
       return setmetatable(Tbl,meta)
 end
@@ -361,7 +431,7 @@ end
 ---@param Tbl table
 ---@return string
 function utilties.table.getType(Tbl)
-      expect(1,Tbl,"table")
+      expect(false,1,Tbl,"table")
       local meta = getmetatable(Tbl) or {}
       return meta.type or "table"
 end
@@ -369,7 +439,7 @@ end
 ---@param Tbl table
 ---@return string
 function utilties.table.get_hash(Tbl)
-      expect(1,Tbl,"table")
+      expect(false,1,Tbl,"table")
       local meta = getmetatable(Tbl) or {}
       return meta.hash or tostring(Tbl):match("table: (%x+)")
 end
