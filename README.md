@@ -43,11 +43,17 @@ designed to handle more then the original expect api can it also upgrades many c
 
 just clears the terminal and sets the text and background color (if it's been given)
 
-#### GUI/GUI:
-
+#### GUI/GUI: 
 a module containing a new windowing system yes it's a bet unrealistic but i wanted to make sure you understood what window what being used for what
 
 why is it more form then function is because it breaks the native into a terminal only with no text 
+
+        for textBox:Chat_Box , we have in configuration: 
+        default_BackgroundColor,default_TextColor,AutoComplete_BackgroundColor AutoComplete_TextColor,disableNewLine and, AutoComplete
+        
+        you will put what you want in the 2nd argument as a table with key based indexing 
+        for autoComplete we do accept functions or a table or nether (disabled) 
+
 
 #### GUI/file_select: 
 
