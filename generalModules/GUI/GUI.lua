@@ -1317,14 +1317,18 @@ function terminal:Chat_Box(sContent,TblSettings)
     TblSettings.AutoComplete_TextColor = field(2,TblSettings,"AutoComplete_TextColor","number","nil") or colors.white
     TblSettings.keywords = field(2,TblSettings,"keywords","table","function","nil")
     TblSettings.keyword_textColor = field(2,TblSettings,"keyword_textColor","number","nil") or colors.blue
-    TblSettings.upDatefunction = field(2,TblSettings,"upDatefunction","function","nil")
     TblSettings.AutoComplete = field(2,TblSettings,"AutoComplete","table","function","nil")
     TblSettings.menu = field(2,TblSettings,"menu","table","nil") or {}
     TblSettings.AutoWrap = field(2,TblSettings,"autoWrap","boolean","nil")
     TblSettings.scroll = field(2,TblSettings,"scroll","number","nil")
     TblSettings.tab_spaces = field(2,TblSettings,"tab_spaces","number","nil")
     local chatBox,menu
-    do
+    local run = true
+    TblSettings.menu.exit = function (word)
+        sContent = chatBox:getVersion()
+        run = false
+    end
+    do -- sets up the windows
         local termSizeX,termSizeY = self:getSize()
         TblSettings.scroll = field(2,TblSettings,"scroll","number","nil") or termSizeY
         if not pcall(range,0,termSizeX,20) or not pcall(range,0,termSizeY,10)
@@ -1334,21 +1338,18 @@ function terminal:Chat_Box(sContent,TblSettings)
         chatBox = self:create(1,1,termSizeX,termSizeY)
         chatBox:upDate(true)
         chatBox:make_textBox(TblSettings.AutoWrap,TblSettings.tab_spaces)
+        chatBox:setCursorBlink(true)
         local terminal_centerX,terminal_centerY = self:getCenter()
         menu = self:create(terminal_centerX-7,terminal_centerY-5,15,10)
     end
-    chatBox:setTextColor(TblSettings.default_TextColor)
-    chatBox:setBackgroundColor(TblSettings.default_BackgroundColor)
-    chatBox:clear()
-    chatBox:setCursorPos(1,1)
-    chatBox:write(sContent,false,true)
-    chatBox:setCursorBlink(true)
+
     local function getLastword()
         local line = chatBox:getSentence()
         ---@diagnostic disable-next-line: cast-local-type
         local words = util.string.split(line," ")
         return words[#words]
     end
+
     local function highlight_keyword()
         local word = getLastword()
         local highlight = false
@@ -1360,7 +1361,7 @@ function terminal:Chat_Box(sContent,TblSettings)
             for _,v in pairs(TblSettings.keywords) do
                 if word == v
                 then
-                    highlight = true
+                    highlight = TblSettings.keyword_textColor
                     break
                 end
             end
@@ -1369,9 +1370,10 @@ function terminal:Chat_Box(sContent,TblSettings)
         then
             chatBox:upDate(false)
             chatBox:write(("\b"):rep(#word))
-            chatBox:setTextColor(TblSettings.keyword_textColor)
+            chatBox:setTextColor(highlight)
             local fullReDraw = chatBox:write(word)
             chatBox:setTextColor(TblSettings.default_TextColor)
+            chatBox:upDate(true)
             if fullReDraw
             then
                 chatBox:redraw()
@@ -1380,6 +1382,23 @@ function terminal:Chat_Box(sContent,TblSettings)
             end
         end
     end
+    do -- loads and highlights the text
+        chatBox:setTextColor(TblSettings.default_TextColor)
+        chatBox:setBackgroundColor(TblSettings.default_BackgroundColor)
+        chatBox:clear()
+        chatBox:upDate(false)
+        local letters = util.string.split(sContent)
+        for _,v in pairs(letters) do
+            if string.match(v,"%s")
+            then
+                highlight_keyword()
+            end
+            chatBox:write(v)
+        end
+        chatBox:upDate(true)
+        chatBox:redraw()
+    end
+
     local autoList = {}
     local function getAutoList()
         local incompleteWord = getLastword()
@@ -1401,13 +1420,7 @@ function terminal:Chat_Box(sContent,TblSettings)
     end
     local menu_list = {}
     local end_CursorPosX,end_CursorPosY
-    local Current_Accepted = 0
-    local currentSel = {}
-    local run = true
-    TblSettings.menu.exit = function ()
-        sContent = chatBox:getVersion()
-        run = false
-    end
+    local currentSel
     for i in pairs(TblSettings.menu) do
         table.insert(menu_list,i)
     end
@@ -1422,18 +1435,11 @@ function terminal:Chat_Box(sContent,TblSettings)
             autoflag = false
             return
         end
-        local stri = ""
-        local to_accept_Amount = #currentSel-Current_Accepted
-        local ind = 2
-        repeat
-            stri = stri..currentSel[Current_Accepted+ind]
-            ind = ind + 1
-        until ind == to_accept_Amount+1
         chatBox:upDate(false) -- disable live updates to the window
         chatBox:setBackgroundColor(TblSettings.AutoComplete_BackgroundColor)
         chatBox:setTextColor(TblSettings.AutoComplete_TextColor)
         local fullRedraw
-        fullRedraw,end_CursorPosX,end_CursorPosY = chatBox:write(stri,true,true)
+        fullRedraw,end_CursorPosX,end_CursorPosY = chatBox:write(currentSel,true,true)
         chatBox:setBackgroundColor(TblSettings.default_BackgroundColor)
         chatBox:setTextColor(TblSettings.default_TextColor)
         chatBox:upDate(true)
@@ -1446,45 +1452,33 @@ function terminal:Chat_Box(sContent,TblSettings)
     end
     --- these are the autoComplete functions
     local function AutoClear()
+        if not autoflag
+        then
+            return
+        end
         chatBox:setCursorPos(end_CursorPosX,end_CursorPosY)
-        chatBox:write(("\b"):rep(#currentSel-Current_Accepted-1))
+        chatBox:write(("\b"):rep(#currentSel+1))
         autoflag = false
-        Current_Accepted = 0
     end
-    local function AcceptCompletion(amount)
-        local stri = ""
-        local accept_Amount = amount and amount or #currentSel-Current_Accepted
-        local ind = 2
-        repeat
-            stri = stri..currentSel[Current_Accepted+ind]
-            ind = ind + 1
-        until ind == accept_Amount+1
+    local function AcceptCompletion()
         chatBox:setBackgroundColor(TblSettings.default_BackgroundColor)
         chatBox:setTextColor(TblSettings.default_TextColor)
-        chatBox:write(stri,true)
+        chatBox:write(currentSel,true)
         autoflag = false
     end
     local function chooseWord(n)
+        if #autoList == 0
+        then
+            return
+        end
         autoflag = true
         Pos = Pos + (n or 1)
         if Pos > #autoList
         then
             Pos = 0
         end
-        currentSel = util.string.split(autoList[Pos])
+        currentSel = table.concat(util.string.split(autoList[Pos]),nil,2)
         reDraw()
-    end
-    local function continue()
-        local cursorPosX,CursorPosY = chatBox:getCursorPos()
-        if cursorPosX > #chatBox.lines[CursorPosY] and TblSettings.AutoComplete
-        then
-            getAutoList()
-            if autoList and #autoList > 0
-            then
-                Pos = 0
-                chooseWord()
-            end
-        end
     end
     local keyMap = {
         [keys.enter] = function ()
@@ -1492,6 +1486,7 @@ function terminal:Chat_Box(sContent,TblSettings)
             then
                 AutoClear()
             end
+            highlight_keyword()
             chatBox:write("\n")
         end,
         [keys.down] = function ()
@@ -1754,7 +1749,6 @@ function terminal:Chat_Box(sContent,TblSettings)
             end,function ()
                 menu:upDate(true)
                 local index = menu:run_list(menu_list,{message = "Menu"})
-                print(index)
                 action = TblSettings.menu[menu_list[index]]
             end)
             if action
@@ -1764,34 +1758,28 @@ function terminal:Chat_Box(sContent,TblSettings)
             menu:upDate(false)
             chatBox:redraw()
             chatBox:restoreCursor()
-        end
+        end,
     }
-    keys.rightCtrl = keyMap.leftCtrl
+    keyMap[keys.rightCtrl] = keyMap[keys.leftCtrl]
     local filter = {
         ["char"] = function (Char)
             if autoflag
             then
-                if Char == currentSel[Current_Accepted+2]
-                then
-                    chatBox:write(Char,true)
-                    Current_Accepted = Current_Accepted + 1
-                    if Current_Accepted == #currentSel-1
-                    then
-                        autoflag = false
-                        Current_Accepted = 0
-                    else
-                        reDraw()
-                    end
-                else
-                    print("\nHi2")
-                    AutoClear()
-                    chatBox:write(Char)
-                    continue()
-                end
-            else
+                AutoClear()
+            elseif string.match(Char,"%s")
+            then
                 highlight_keyword()
-                chatBox:write(Char)
-                continue()
+            end
+            chatBox:write(Char)
+            local cursorPosX,CursorPosY = chatBox:getCursorPos()
+            if cursorPosX > #chatBox.lines[CursorPosY] and TblSettings.AutoComplete
+            then
+                getAutoList()
+                if autoList and #autoList > 0
+                then
+                    Pos = 0
+                    chooseWord()
+                end
             end
         end,
         ["paste"] = function (stri)
@@ -1799,7 +1787,14 @@ function terminal:Chat_Box(sContent,TblSettings)
             then
                 return
             end
-            chatBox:write(stri)
+            local letters = util.string.split(stri)
+            for _,v in pairs(letters) do
+                if v:match("%s")
+                then
+                    highlight_keyword()
+                end
+                chatBox:write(v)
+            end
         end,
         ["key"] = function (number)
             local action = keyMap[number]
@@ -1827,7 +1822,6 @@ function terminal:Chat_Box(sContent,TblSettings)
         end,
         ["mouse_scroll"] = function (direction)
             local offsetY = select(2,chatBox:getOffset())
-            local SizeY = select(2,chatBox:getSize())
             if direction < 0
             then
                 direction = direction-TblSettings.scroll
@@ -1835,7 +1829,7 @@ function terminal:Chat_Box(sContent,TblSettings)
                 direction = direction+TblSettings.scroll
             end
             local newPos = offsetY+direction
-            if newPos <= 0 
+            if newPos <= 0
             then
                 newPos = 0
             end
@@ -1845,7 +1839,7 @@ function terminal:Chat_Box(sContent,TblSettings)
     parallel.waitForAny(function ()
         while true do
             chatBox:restoreCursor()
-            os.pullEventRaw()
+            coroutine.yield()
         end
     end,function ()
         while run do
@@ -1892,7 +1886,6 @@ function textBox:Chat_Prompt(message,TblSettings)
     TblSettings.default_TextColor = field(2,TblSettings,"default_TextColor","number","nil") or colors.black
     TblSettings.AutoComplete_BackgroundColor = field(2,TblSettings,"AutoComplete_BackgroundColor","number","nil") or colors.gray
     TblSettings.AutoComplete_TextColor = field(2,TblSettings,"AutoComplete_TextColor","number","nil") or colors.white
-    TblSettings.upDatefunction = field(2,TblSettings,"upDatefunction","function","nil")
     TblSettings.AutoComplete = field(2,TblSettings,"AutoComplete","table","function","nil")
     self:setTextColor(TblSettings.default_TextColor)
     self:setBackgroundColor(TblSettings.default_BackgroundColor)
@@ -1927,9 +1920,8 @@ function textBox:Chat_Prompt(message,TblSettings)
     end
     local sContent
     local end_CursorPosX,end_CursorPosY
-    local Current_Accepted = 0
     local messageLen = #message 
-    local currentSel = {}
+    local currentSel
     local run = true
     local Pos = 1
     local autoflag = false
@@ -1941,18 +1933,11 @@ function textBox:Chat_Prompt(message,TblSettings)
             autoflag = false
             return
         end
-        local stri = ""
-        local to_accept_Amount = #currentSel-Current_Accepted
-        local ind = 2
-        repeat
-            stri = stri..currentSel[Current_Accepted+ind]
-            ind = ind + 1
-        until ind == to_accept_Amount+1
         self:upDate(false) -- disable live updates to the window
         self:setBackgroundColor(TblSettings.AutoComplete_BackgroundColor)
         self:setTextColor(TblSettings.AutoComplete_TextColor)
         local fullRedraw
-        fullRedraw,end_CursorPosX,end_CursorPosY = self:write(stri,true,true)
+        fullRedraw,end_CursorPosX,end_CursorPosY = self:write(currentSel,true,true)
         self:setBackgroundColor(TblSettings.default_BackgroundColor)
         self:setTextColor(TblSettings.default_TextColor)
         self:upDate(true)
@@ -1966,21 +1951,13 @@ function textBox:Chat_Prompt(message,TblSettings)
     --- these are the autoComplete functions
     local function AutoClear()
         self:setCursorPos(end_CursorPosX,end_CursorPosY)
-        self:write(("\b"):rep(#currentSel-Current_Accepted-1))
+        self:write(("\b"):rep(#currentSel))
         autoflag = false
-        Current_Accepted = 0
     end
-    local function AcceptCompletion(amount)
-        local stri = ""
-        local accept_Amount = amount and amount or #currentSel-Current_Accepted
-        local ind = 2
-        repeat
-            stri = stri..currentSel[Current_Accepted+ind]
-            ind = ind + 1
-        until ind == accept_Amount+1
+    local function AcceptCompletion()
         self:setBackgroundColor(TblSettings.default_BackgroundColor)
         self:setTextColor(TblSettings.default_TextColor)
-        self:write(stri,true)
+        self:write(currentSel,true)
         autoflag = false
     end
     local function chooseWord(n)
@@ -1990,20 +1967,8 @@ function textBox:Chat_Prompt(message,TblSettings)
         then
             Pos = 0
         end
-        currentSel = util.string.split(autoList[Pos])
+        currentSel = table.concat(util.string.split(autoList[Pos]),nil,2)
         reDraw()
-    end
-    local function continue()
-        local cursorPosX,CursorPosY = self:getCursorPos()
-        if cursorPosX > #self.lines[CursorPosY] and TblSettings.AutoComplete
-        then
-            getAutoList()
-            if autoList and #autoList > 0
-            then
-                Pos = 0
-                chooseWord()
-            end
-        end
     end
     local keyMap = {
         [keys.enter] = function ()
@@ -2022,6 +1987,12 @@ function textBox:Chat_Prompt(message,TblSettings)
             then
                 AutoClear()
                 chooseWord(1)
+            end
+        end,
+        [keys.tab] = function ()
+            if autoflag
+            then
+                AcceptCompletion()
             end
         end,
         [keys.up] = function ()
@@ -2197,26 +2168,18 @@ function textBox:Chat_Prompt(message,TblSettings)
         ["char"] = function (Char)
             if autoflag
             then
-                if Char == currentSel[Current_Accepted+2]
+                AutoClear()
+            end
+            self:write(Char)
+            local cursorPosX,CursorPosY = self:getCursorPos()
+            if cursorPosX > #self.lines[CursorPosY] and TblSettings.AutoComplete
+            then
+                getAutoList()
+                if autoList and #autoList > 0
                 then
-                    self:write(Char,true)
-                    Current_Accepted = Current_Accepted + 1
-                    if Current_Accepted == #currentSel-1
-                    then
-                        autoflag = false
-                        Current_Accepted = 0
-                    else
-                        reDraw()
-                    end
-                else
-                    print("\nHi2")
-                    AutoClear()
-                    self:write(Char)
-                    continue()
+                    Pos = 0
+                    chooseWord()
                 end
-            else
-                self:write(Char)
-                continue()
             end
         end,
         ["paste"] = function (stri)
