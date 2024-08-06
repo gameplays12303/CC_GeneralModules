@@ -16,12 +16,40 @@ end
 local function getType(var,btrue)
     if type(var) == "table" and btrue
     then
-        return (getmetatable(var) or {}).type or "table"
+        return (getmetatable(var) or {})._name or "table"
     elseif type(var) == "table"
     then
         return "table"
     end
     return type(var)
+end
+local function debugInfo(n)
+    local name
+    if debug and debug.getinfo then -- if we can get the name of the called function then lets include index else put the file in it's place
+        local ok,info = pcall(debug.getinfo,4,"nS")
+        if not ok
+        then
+            return
+        end
+        name = info.name and info.name ~= "" and info.what ~= "C" and info.name
+    end
+    return name
+end
+local function callerDebuginfo(n)
+    local name
+    if debug and debug.getinfo then -- if we can get the name of the called function then lets include index else put the file in it's place
+        local ok,info = pcall(debug.getinfo,n or 3,"nS")
+        if not ok
+        then
+            return error(info,n or 3)
+        end
+        name = info.name and info.name ~= "" and info.what ~= "C" and info.name
+    end
+    return name
+end
+local function checkArguments()
+    local name = callerDebuginfo(4)
+    error(("check arguments %s:"):format(name and name or ""),3)
 end
 ---comment
 ---@param _bClasses boolean
@@ -32,18 +60,15 @@ end
 handle.expect = function (_bClasses,index,var,...)
     if #{...} == 0 or type(_bClasses) ~= "boolean"
     then
-        error("check arguments",2)
+        checkArguments()
     end
     if type(var) == "table" and _bClasses
     then
-        local info = (getmetatable(var) or {}).type
-        if info
-        then
-            for _,v in pairs({...}) do
-                if v == info
-                then
-                    return var
-                end
+        local info = (getmetatable(var) or {})._name
+        for _,v in pairs({...}) do
+            if v == (info or "table")
+            then
+                return var
             end
         end
     else
@@ -54,11 +79,9 @@ handle.expect = function (_bClasses,index,var,...)
             end
         end
     end
-    if debug then -- if we can get the name of the called function then lets include it
-    else
-        error(("argument #%s expected %s: got %s"):format(index,listerror({...}),getType(var,_bClasses)),3)
-    end
-end
+    local name  = debugInfo()
+    error(("argument #%s%s expected %s: got %s"):format(index,name and (" from %s"):format(name) or "",listerror({...}),getType(var,_bClasses)),3)
+end 
 ---comment
 ---@param index number
 ---@param var any
@@ -69,7 +92,7 @@ handle.blacklist  = function (_bClasses,index,var,...)
     handle.expect(false,2,index,"number")
     if #{...}  == 0
     then
-        error("check arguments",2)
+        checkArguments()
     end
     local info
     if type(var) == "table"
@@ -93,7 +116,8 @@ handle.blacklist  = function (_bClasses,index,var,...)
     end
     if faild
     then
-        error(("argument #%s banned %s: got %s"):format(index,listerror({...}),getType(var,_bClasses)),3)
+        local name  = debugInfo()
+        error(("argument #%s%s banned %s: got %s"):format(index,name and (" from %s"):format(name) or "",listerror({...}),getType(var,_bClasses)),3)
     end
     return var
 end
@@ -105,7 +129,8 @@ handle.expectValue = function (index,var)
     handle.expect(false,1,index,"number")
     if type(var) == "nil"
     then
-        error(("argument #%s:expected value got nil"):format(index),2)
+        local name = debugInfo()
+        error(("argument #%s%s:expected value got nil"):format(index,name and (" from %s"):format(name) or ""),3)
     end
     return var
 end
@@ -120,7 +145,7 @@ handle.field = function (loc,tbl,index,...)
     handle.expect(false,3,index,"string","number")
     if #{...} == 0
     then
-        error("argument #4 expect values got none",2)
+        checkArguments()
     end
     for i,v in pairs({...}) do
         handle.expect(false,i+4,v,"string")
@@ -128,7 +153,8 @@ handle.field = function (loc,tbl,index,...)
     local bool = pcall(handle.expect,true,0,tbl[index],...)
     if not bool
     then
-        error(("argument #%s: %s is expected to be %s: got %s"):format(loc,index,listerror({...}),type(tbl[index])),3)
+        local name = debugInfo()
+        error(("argument #%s %s: %s is expected to be %s: got %s"):format(loc,index,name and (" from %s"):format(name) or "",listerror({...}),type(tbl[index])),3)
     end
     return tbl[index]
 end
@@ -145,11 +171,11 @@ handle.range = function (index,num,min,max)
     max = handle.expect(false,4,max,"number","nil") or math.huge
     if max < min
     then
-        error((" %s min is greator then max %s"):format(min,max),3)
-    end
-    if num > max or num < min
+        error(("min is greator then max got %s/%s"):format(min,max),2)
+    elseif num > max or num < min
     then
-        error(("expected argument #%s: to be between %s and %s got %s"):format(index,min,max,num),3)
+        local name = debugInfo()
+        error(("expected argument #%s%s: to be between %s and %s got %s"):format(index,name and (" from %s"):format(name) or "",min,max,num),3)
     end
     return num
 end

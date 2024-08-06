@@ -47,22 +47,6 @@ function debug.getinfo(thread, func, what)
     return retval
 end
 
-function debug.getlocal(thread, level, loc)
-    if loc == nil then loc, level, thread = level, thread, running() end
-    local k, v
-    if type(level) == "function" then
-        local caller = getinfo(2, "f")
-        if protectedObjects[level] and not (caller and protectedObjects[level][caller.func]) then return nil end
-        k, v = superprotect(getlocal(level, loc))
-    elseif tonumber(level) then
-        local info = getinfo(thread, level + 1, "f")
-        local caller = getinfo(2, "f")
-        if info and protectedObjects[info.func] and not (caller and protectedObjects[info.func][caller.func]) then return nil end
-        k, v = superprotect(getlocal(thread, level + 1, loc))
-    else k, v = superprotect(getlocal(thread, level, loc)) end
-    return k, v
-end
-
 function debug.getupvalue(func, up)
     if type(func) == "function" then
         local caller = getinfo(2, "f")

@@ -13,8 +13,10 @@ local utilties = {}
 utilties.string = {}
 utilties.table = {}
 utilties.file = {}
+utilties.color = {}
 -- strings addons 
----comment
+
+---splits a string input no sep value nor _bkeepdelimiters to get a list of chars
 ---@param inputstr string
 ---@param sep string|nil
 ---@param _bkeepdelimiters boolean|nil
@@ -26,7 +28,8 @@ function utilties.string.split(inputstr, sep,_bkeepdelimiters)
       local t={}
       if not sep
       then
-            for char in inputstr:gmatch(".") do table.insert(t, char) end
+            for char in inputstr:gmatch(".") do
+                  table.insert(t, char) end
             return t
       end
       if not _bkeepdelimiters
@@ -42,133 +45,127 @@ function utilties.string.split(inputstr, sep,_bkeepdelimiters)
       t[#t] = nil
       return t
 end
----comment
----@param _nTSX number
+---preps a string for the window
+---@param termnial_size number
 ---@param _sMessage string
-function utilties.string.wrap(_nTSX,_sMessage,_nCPX)
-      expect(false,1,_nTSX,"number")
+---@param CursorPosX number|nil
+function utilties.string.wrap(termnial_size,_sMessage,CursorPosX)
+      expect(false,1,termnial_size,"number")
       expect(false,2,_sMessage,"string")
-      _nCPX = expect(false,3,_nCPX,"number","nil") or 1
-      local list = utilties.string.split(_sMessage," ",true)
-      do
-            local result = {}
-            for i,v in pairs(list) do
-                  result[i] = utilties.string.split(v)
-            end
-            list = result
-      end
-      if true 
-      then
-            return list
+      CursorPosX = expect(false,3,CursorPosX,"number","nil") or 0
+      local word = {}
+      for i,v in pairs(utilties.string.split(_sMessage," ",true)) do
+            word[i] = utilties.string.split(v)
       end
       local results = ""
       local Sy = 1
-      local CXP = 0
       local index = 1
-      local function nextChar()
+      local function next()
             index = index + 1
       end
-      local function nextLine()
-            CXP = 0
-            Sy = Sy + 1
-      end
       local function AddAndReset()
-            nextLine()
+            CursorPosX = 0
+            Sy = Sy + 1
             results = results.."\n"
       end
-      while index <= #list do
-            local char = list[index]
-            if #char > _nTSX
+      while index <= #word do
+            local Char_list = word[index]
+            if #Char_list > termnial_size
             then
-                  for _,s in pairs(v) do
-                        CXP = CXP + 1
-                        if CXP > _nTSX and s ~= "\n"
+                  for _,s in pairs(Char_list) do
+                        CursorPosX = CursorPosX + 1
+                        if CursorPosX > termnial_size
                         then
                               AddAndReset()
                         end
                         results = results..s
                   end
-                  nextChar()
-            elseif #char+CXP > _nTSX and char ~= "\n"
+                  next()
+            elseif #Char_list+CursorPosX > termnial_size
             then
                   AddAndReset()
             else
-                  results = results..table.concat(char,"")
-                  CXP = CXP + #char
-                  nextChar()
+                  results = results..table.concat(Char_list,"")
+                  CursorPosX = CursorPosX + #Char_list
+                  next()
             end
       end
       return results,Sy
 end
----comment
+---custom built Serialiser design to handle selfReferencing tables and functions (using string.dump)
 ---@param _data any
 ---@param _Index any
 ---@return string|unknown
 function utilties.string.Serialise(_data,_Index)
-      blacklist(false,1,_data,"thread","function","userdata")
+      blacklist(false,1,_data,"thread","userdata")
       _Index =  expect(false,2,_Index,"number","nil") or 0
       local indexGag = ("\t"):rep(_Index)
-      local handle = {
-          ["boolean"] = function ()
-              return tostring(_data)
-          end,
-          ["string"] = function ()
-              return "\"".._data.."\""
-          end,
-          ["table"] = function ()
-              local result = "{\n"
-              for i,v in pairs(_data) do
-                  if type(v) ~= "table" or not util.table.selfReferencing(v)
-                  then
-                      if type(i) == "string"
-                      then
-                          if string.find(i,"%p") ~= nil
-                          then
-                              result = result.."\t"..indexGag..("[\"%s\"] = "):format(i)..Serialise(v,_Index+1)..",\n"
-                          else
-                              result = result.."\t"..indexGag..("%s = "):format(i)..Serialise(v,_Index+1)..",\n"
-                          end
-                      else
-                          result = result.."\t"..indexGag..Serialise(v,_Index+1)..",\n"
-                      end
+      local actions = {
+            ["boolean"] = function ()
+                  return tostring(_data)
+            end,
+            ["string"] = function ()
+                  return "\"".._data.."\""
+            end,
+            ["table"] = function ()
+                  local result = "{\n"
+                  for i,v in pairs(_data) do
+                        if type(v) ~= "table" or not utilties.table.selfReferencing(v)
+                        then
+                              if type(i) == "string"
+                              then
+                                    if string.find(i,"%p") ~= nil
+                                    then
+                                          result = result.."\t"..indexGag..("[\"%s\"] = "):format(i)..utilties.table.Serialise(v,_Index+1)..",\n"
+                                    else
+                                          result = result.."\t"..indexGag..("%s = "):format(i)..utilties.table.Serialise(v,_Index+1)..",\n"
+                                    end
+                              else
+                                    result = result.."\t"..indexGag..utilties.table.Serialise(v,_Index+1)..",\n"
+                              end
+                        end
                   end
-              end
-              return result..indexGag.."}"
-          end,
+                  return result..indexGag.."}"
+            end,
+            ["function"] = function ()
+                  return string.dump(_data)
+            end
       }
-      handle["number"] = handle["boolean"]
-      return handle[type(_data)]()
+      local action = actions[type(_data)]
+      return action and action() or error("unknown type",2)
 end
----comment
+---custom text loader 
 ---@param _sData string
 ---@return unknown
 function utilties.string.Unserialise(_sData)
-expect(false,1, _sData, "string")
-local func,err = load("return " .. _sData, "unserialize","t",{})
-if func then
-      local ok, result = pcall(func)
-      if ok then
-            return result
+      expect(false,1, _sData, "string")
+      local func,err = load("return " .. _sData, "unserialize","t",{})
+      if func then
+            local ok, result = pcall(func)
+            if ok then
+                  return result
+            end
       end
-end
-return error(err,2)
+      return error(err,2)
 end
 -- fs addons
----comment
+
+---gets the created date
 ---@param sPath string
 ---@return number
 function utilties.file.created(sPath)
       expect(false,1,sPath,"string")
       return fs.attributes(sPath).created
 end
----comment
+
+---gets the modified date
 ---@param sPath string
 ---@return number
 function utilties.file.modified(sPath)
       expect(false,1,sPath,"string")
       return fs.attributes(sPath).modified
 end
----comment
+---gets the extension type (.lua)
 ---@param _sfile string
 ---@return string
 function utilties.file.getExtension(_sfile)
@@ -176,14 +173,14 @@ function utilties.file.getExtension(_sfile)
       local Table = utilties.string.split(_sfile,"%.")
       return Table[2]
 end
----comment
+---gets the root (eg. C:/, Root)
 ---@param _sPath string
 ---@return string
 function utilties.file.getRoot(_sPath)
       expect(false,1,_sPath,"string")
       return utilties.string.split(_sPath,"/")[1]
 end
----comment
+---gets the name but leaves out the extension
 ---@param _sfile string
 ---@return string
 function utilties.file.withoutExtension(_sfile)
@@ -191,7 +188,8 @@ function utilties.file.withoutExtension(_sfile)
       local Table = utilties.string.split(_sfile,"%.")
       return Table[1]
 end
----comment
+
+---list everything that's inside a folder and their folders 
 ---@param sPath string
 ---@param showFiles boolean|nil
 ---@param showDirs boolean|nil
@@ -249,7 +247,8 @@ function utilties.file.listsubs(sPath,showFiles,showDirs,showRootDir,showRom)
       end
       return list
 end
----comment
+
+---list everything inside a folder
 ---@param sPath string
 ---@param showFiles boolean|nil
 ---@param showDirs boolean|nil
@@ -286,7 +285,7 @@ function utilties.file.list(sPath,showFiles,showDirs,showPath)
       end
       return list2
 end
----comment
+---wrapps the directory so ".." equals ""
 ---@param path string
 ---@return string
 function utilties.file.getDir(path)
@@ -298,8 +297,8 @@ function utilties.file.getDir(path)
             return fs.getDir(path)
       end
 end
-utilties.color = {}
----comment
+
+---test if a number is a color
 ---@param color number
 ---@return boolean
 function utilties.color.isColor(color)
@@ -313,16 +312,21 @@ function utilties.color.isColor(color)
       return false
 end
 -- table addons
----comment
+
+---looks in the table for a values (dose not check subtables nor the index table)
 ---@param base table
----@param ID any
----@return unknown
-function utilties.table.find(base,ID)
+---@param ID string|number
+---@param strict boolean|nil
+---@return string|number|boolean
+function utilties.table.find(base,ID,strict)
       expect(false,1,base,"table")
       for i,v in pairs(base) do
             if type(v) == "string" and type(ID) == "string"
             then
-                  if string.find(v,ID)
+                  if not strict and string.find(ID,i)
+                  then
+                        return i
+                  elseif v == ID
                   then
                         return i
                   end
@@ -333,67 +337,79 @@ function utilties.table.find(base,ID)
       end
       return false
 end
-function utilties.table.selfReferencing(base,search)
-expect(false,1,base,"table")
-search =  expect(false,1,search,"table","nil") or base
-local info  = (getmetatable(base) or {}).__index
-if type(info) == "function"
-then
-      info = info(base)
-end
-if type(info) == "table"
-then
-      local bool,err = pcall(utilties.table.selfReferencing,info,base)
-      if not bool
-      then
-            return true,err
+---checks to see if a table is selfReferencing
+---@param base table
+---@return boolean
+function utilties.table.selfReferencing(base)
+      expect(false, 1, base, "table")
+      local stack = {{base, select(2, pcall(getmetatable, base))}}
+      local seen = {}
+      local firstLoop = true
+      while true do
+          local current = table.remove(stack)
+          if not current then
+              break
+          end
+          local tbl, mt = current[1], current[2]
+          if tbl == base and not firstLoop then
+              return true
+          end
+          seen[tbl] = true
+          -- Iterate through the current table's values
+          for _, v in pairs(tbl) do
+              if v == base then
+                  return true
+              end
+              if type(v) == "table" and not seen[v] then
+                  table.insert(stack, {v, select(2, pcall(getmetatable, v))})
+              end
+          end
+          -- Check the metatable's __index field if it's a table
+          if type(mt) == "table" and mt.__index then
+              local meta_index = mt.__index
+              if type(meta_index) == "function" then
+                  meta_index = meta_index(tbl)
+              end
+              if type(meta_index) == "table" and not seen[meta_index] then
+                  table.insert(stack, {meta_index, select(2, pcall(getmetatable, meta_index))})
+              end
+          end
+          firstLoop = false
       end
-      if err
-      then
-            return true
-      end
+      return false
 end
-return utilties.table.find(base,base) and true or false
-end
----comment
----@param Table table
+---creates a true copy (with the option to include the meta table)
+---@param Copy_Tbl table
 ---@param copymetatable boolean|nil
----@param proxy table|nil
----@param copyAll boolean|nil
 ---@return table
-function utilties.table.copy(Table,copymetatable,proxy,copyAll)
-expect(false,1,Table,"table")
-expect(false,2,copymetatable,"boolean","nil")
-expect(false,3,proxy,"table","nil")
-proxy = proxy or {}
-local metatable = getmetatable(Table)
-for k,v in pairs(Table) do
-      if type(v) == "table" and not utilties.table.selfReferencing(v)
-      then
-            proxy[k] = utilties.table.copy(v)
-      elseif type(v) ~= "table"
-      then
-            proxy[k] = v
+function utilties.table.copy(Copy_Tbl,copymetatable)
+      expect(false,1,Copy_Tbl,"table")
+      expect(false,2,copymetatable,"boolean","nil")
+      local proxy = {}
+      for index,v in pairs(Copy_Tbl) do
+            if type(v) == "table" and not utilties.table.selfReferencing(v)
+            then
+                  proxy[index] = utilties.table.copy(v,copymetatable)
+            else
+                  proxy[index] = v
+            end
       end
-end
-if not table.disabledMetaTable and copymetatable
-then
-      return setmetatable(proxy,metatable)
-elseif table.disabledMetaTable and not table.disabledMetaTable(proxy) and copymetatable
-then
-      return setmetatable(proxy,metatable)
-end
+      local bool,reuslt = pcall(getmetatable,Copy_Tbl)
+      if bool and copymetatable
+      then
+            setmetatable(proxy,reuslt)
+      end
       return proxy
 end
 
----comment
+---transfers a number of items indexes into a new table
 ---@param base table
 ---@param _nTransfer number
 ---@return table
 function utilties.table.transfer(base,_nTransfer)
       expect(false,1,base,"table")
       expect(false,2,_nTransfer,"number")
-      local CIndex = _nTransfer
+      local CIndex = 1
       local result = {}
       while CIndex <= _nTransfer do
             result[CIndex] = base[CIndex]
@@ -402,15 +418,22 @@ function utilties.table.transfer(base,_nTransfer)
       return result
 end
 
+---replaces the table type with the class type
+---@param self table
+---@return string
 function utilties.table.tostring(self)
-      local meta = getmetatable(self)
+      local bool,meta = pcall(getmetatable,self)
+      if not bool or not meta
+      then
+            return ("%s: (%s)"):format(utilties.getType(self),utilties.get_hash(self))
+      end
       if not meta.hash
       then
-            return meta._name
+            return meta._name or meta.type
       end
       return ("%s: (%s)"):format(meta._name,meta.hash)
 end
----comment
+---sets the table class type
 ---@param Tbl table
 ---@param Type string
 ---@param keepHash boolean|nil
@@ -418,7 +441,11 @@ end
 function utilties.table.setType(Tbl,Type,keepHash)
       expect(false,1,Tbl,"table")
       expect(false,2,Type,"string")
-      local meta = getmetatable(Tbl) or {}
+      local bool,meta = pcall(getmetatable,Tbl)
+      if not bool or not meta
+      then
+            meta = {}
+      end
       meta._name = Type
       if keepHash or keepHash == nil
       then
@@ -427,15 +454,15 @@ function utilties.table.setType(Tbl,Type,keepHash)
       meta.__tostring = utilties.table.tostring
       return setmetatable(Tbl,meta)
 end
----comment
+---returns the class type
 ---@param Tbl table
 ---@return string
 function utilties.table.getType(Tbl)
       expect(false,1,Tbl,"table")
       local meta = getmetatable(Tbl) or {}
-      return meta._name or meta.type or "table"
+      return meta._name or "table"
 end
----comment
+---returns the hash
 ---@param Tbl table
 ---@return string
 function utilties.table.get_hash(Tbl)

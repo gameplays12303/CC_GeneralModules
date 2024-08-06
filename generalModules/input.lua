@@ -8,7 +8,13 @@ local completion = require("cc.completion")
 local insert = table.insert
 local pack = table.pack
 local term = term
----@overload fun(message:string,replace:string|nil,history:table|nil,list:table|nil)
+
+---basic prompt screen using read
+---@param message string
+---@param replace string|nil
+---@param history table|nil
+---@param list table|nil
+---@return string
 function input.prompt(message,replace,history,list)
     expect(1,message,"string","nil")
     expect(2,replace,"string","nil")
@@ -20,7 +26,13 @@ function input.prompt(message,replace,history,list)
     term.setCursorPos(x,y)
     return tostring(read(replace,history,function(text) if list ~= nil then return completion.choice(text,list) end end))
 end
----@overload fun(Table:table,mess:string,optionsColor:number|nil,TextColor:number|nil,BackgroundColor:number|nil)
+---basic menu using the build in winow API
+---@param Table table
+---@param mess string
+---@param optionsColor number|nil
+---@param TextColor number|nil
+---@param BackgroundColor number|nil
+---@return integer
 function input.BasicMenu(Table,mess,optionsColor,TextColor,BackgroundColor)
     expect(1,Table,"table")
     expect(2,mess,"string")

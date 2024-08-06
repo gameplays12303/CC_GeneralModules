@@ -10,8 +10,8 @@ local Tbl = util.table.copy(table)
 local metaTable = {getmetatable = getmetatable,setmetatable = setmetatable}
 local nativeRawSet = rawset
 local function find(meta,index)
-    index = index or 0
-    local info = debug.getinfo(index+4)
+    index = (index or 0) >= 4 and index or 4
+    local info = debug.getinfo(index)
     local found = false
     for _,v in pairs(meta) do
         if type(v) == "table" and not util.table.selfReferencing(v)
@@ -160,10 +160,28 @@ table.setReadOnly = function (_tlist,accesslist)
     then
         error("table is ReadOnly",2)
     end
-    local newMeta = {__index = _tlist,__newindex = function (t, k, v)
+    meta.__index = _tlist
+    meta.__newindex = function (t, k, v)
         error("table is ReadOnly",2)
-    end,_isReadOnly = true,access = accesslist}
-    local proxy = metaTable.setmetatable({},newMeta)
+    end
+    meta._isReadOnly = true
+    meta.access = accesslist
+    meta.__pairs = function ()
+        local k = nil
+        return function ()
+            local v
+            repeat k,v=next(_tlist,k) until v~= nil or k == nil
+            return k,v
+        end
+    end
+    meta.__ipairs = function ()
+        local count = 0
+        return function ()
+            count = count+1
+            return _tlist[count]
+        end
+    end
+    local proxy = metaTable.setmetatable({},meta)
     if util.table.getType(_tlist) ~= "table"
     then
         util.table.setType(proxy,util.table.getType(_tlist))
@@ -188,5 +206,25 @@ then
         then
             debug.protect(v)
         end
+    end
+end
+if tonumber(string.sub(_VERSION,1,3)) <= 5.1
+then
+    local raw_pairs = pairs
+    pairs = function(t)
+        local metatable = metaTable.getmetatable(t)
+        if metatable and metatable.__pairs then
+            return metatable.__pairs(t)
+        end
+        return raw_pairs(t)
+    end
+
+    local raw_ipairs = ipairs
+    ipairs = function(t)
+        local metatable = metaTable.getmetatable(t)
+        if metatable and metatable.__ipairs then
+            return metatable.__ipairs(t)
+        end
+        return raw_ipairs(t)
     end
 end

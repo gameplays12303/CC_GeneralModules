@@ -18,11 +18,11 @@ return function (_sDir,Text,CFile,CDir,BC,TC)
     expect(4,CDir,"boolean","nil")
     expect(5,BC,"number","nil")
     expect(6,TC,"number","nil")
-    if BC and not util.color.isColor(BC)
+    if BC and not util.Color.isColor(BC)
     then
         error("2 argument is not a color",2)
     end
-    if TC and not util.color.isColor(TC)
+    if TC and not util.Color.isColor(TC)
     then
         error("3 argument is not a color",2)
     end
@@ -48,7 +48,7 @@ return function (_sDir,Text,CFile,CDir,BC,TC)
         local choice = input.BasicMenu(list,("%s: :Current dir: %s "):format(Text,dir ~= "" and dir or "Root"),TC,TC,BC)
         if list[choice] == "back"
         then
-            dir = util.file.getDir(dir)
+            dir = util.File.getDir(dir)
         elseif list[choice] == "exit"
         then
             break

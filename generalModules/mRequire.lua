@@ -54,7 +54,9 @@ local function protect(Tbl)
         end
     end
 end
----comment
+
+---loads up the api
+--- unlike normal require it can take a environment table and reload a api
 ---@param _sPath string
 ---@param _Env table|nil
 ---@param bReload boolean|nil
@@ -66,7 +68,10 @@ function handle.require(_sPath,_Env,bReload)
     -- backwards support for require
     -- turns the '.' into "/" then adds
     -- .lua to the end of the string
-    _sPath = string.gsub(_sPath,"%.","/")..".lua"
+    if util.file.getExtension(_sPath) ~= "lua"
+    then
+        _sPath = string.gsub(_sPath,"%.","/")..".lua"
+    end
     
     -- checks to see if the modules exists
     -- in the Paths written in the Path Table
@@ -105,7 +110,8 @@ function handle.require(_sPath,_Env,bReload)
                 if table.setReadOnly
                 then
                     local meta = getmetatable(v).__index
-                    return table.unpack(meta)
+                    return 
+                    table.unpack(meta)
                 end
                 return v()
             end
@@ -133,10 +139,17 @@ function handle.require(_sPath,_Env,bReload)
     if table.setReadOnly and debug and debug.protect
     then
         protect(ok)
-        handle.loaded[_sPath] = table.setReadOnly({table.unpack(ok,2)},{handle.require})
+        handle.loaded[_sPath] = table.setReadOnly({table.unpack(ok,2)},handle)
     else
         handle.loaded[_sPath] = fn
     end
     return table.unpack(ok,2)
+end
+--- reloads the all the apis
+function handle.reLoadAll()
+    for i, v in pairs(handle.loaded) do
+        local Env = getfenv(v)
+        handle.require(i,Env,true)
+    end
 end
 return handle

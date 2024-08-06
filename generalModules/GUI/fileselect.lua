@@ -28,7 +28,7 @@ return function (terminal,_sStartDir,message,AccpetFiles,AccpetDirs)
     end
     if not terminal.run_list
     then
-        error("nessary function missing argument #0",2)
+        error("nessary function missing argument #1",2)
     end
     if not fs.exists(_sStartDir)
     then
