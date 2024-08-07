@@ -315,7 +315,7 @@ end
 
 ---looks in the table for a values (dose not check subtables nor the index table)
 ---@param base table
----@param ID string|number
+---@param ID any
 ---@param strict boolean|nil
 ---@return string|number|boolean
 function utilties.table.find(base,ID,strict)
@@ -382,12 +382,12 @@ end
 ---@param Copy_Tbl table
 ---@param copymetatable boolean|nil
 ---@return table
-function utilties.table.copy(Copy_Tbl,copymetatable)
+function utilties.table.copy(Copy_Tbl,shallow,copymetatable)
       expect(false,1,Copy_Tbl,"table")
       expect(false,2,copymetatable,"boolean","nil")
       local proxy = {}
       for index,v in pairs(Copy_Tbl) do
-            if type(v) == "table" and not utilties.table.selfReferencing(v)
+            if type(v) == "table" and not utilties.table.selfReferencing(v) and not shallow
             then
                   proxy[index] = utilties.table.copy(v,copymetatable)
             else
