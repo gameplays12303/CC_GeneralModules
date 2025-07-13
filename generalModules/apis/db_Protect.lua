@@ -74,33 +74,43 @@ function debug.setupvalue(func, up, value)
     setupvalue(func, up, value)
 end
 
-function _G.getfenv(f)
-    local v
-    if f == nil then v = n_getfenv(2)
-    elseif tonumber(f) and checkint32(f) > 0 then
-        local info = getinfo(f + 1, "f")
-        local caller = getinfo(2, "f")
-        if info and protectedObjects[info.func] and not (caller and protectedObjects[info.func][caller.func]) then return nil end
-        v = n_getfenv(f+1)
-    elseif type(f) == "function" then
-        local caller = getinfo(2, "f")
-        if protectedObjects[f] and not (caller and protectedObjects[f][caller.func]) then return nil end
-        v = n_getfenv(f)
-    else v = n_getfenv(f) end
-    return v
-end
 
-function _G.setfenv(f, tab)
-    if tonumber(f) and checkint32(f) > 0 then
-        local info = getinfo(f + 1, "f")
-        local caller = getinfo(2, "f")
-        if info and protectedObjects[info.func] and not (caller and protectedObjects[info.func][caller.func]) then error("attempt to set environment of protected function", 2) end
-        n_setfenv(f+1, tab)
-    elseif type(f) == "function" then
-        local caller = getinfo(2, "f")
-        if protectedObjects[f] and not (caller and protectedObjects[f][caller.func]) then error("attempt to set environment of protected function", 2) end
+if _G.getfenv
+then
+    ---@diagnostic disable-next-line: duplicate-set-field
+    function _G.getfenv(f)
+        local v
+        if f == nil then v = n_getfenv(2)
+        elseif tonumber(f) and checkint32(f) > 0 then
+            local info = getinfo(f + 1, "f")
+            local caller = getinfo(2, "f")
+            if info and protectedObjects[info.func] and not (caller and protectedObjects[info.func][caller.func]) then return nil end
+            
+            ---@diagnostic disable-next-line: need-check-nil
+            v = n_getfenv(f+1)
+        elseif type(f) == "function" then
+            local caller = getinfo(2, "f")
+            if protectedObjects[f] and not (caller and protectedObjects[f][caller.func]) then return nil end
+            v = n_getfenv(f)
+        else v = n_getfenv(f) end
+        ---@diagnostic disable-next-line: return-type-mismatch
+        return v
     end
-    n_setfenv(f, tab)
+end
+if _G.setfenv
+then
+    function _G.setfenv(f, tab)
+        if tonumber(f) and checkint32(f) > 0 then
+            local info = getinfo(f + 1, "f")
+            local caller = getinfo(2, "f")
+            if info and protectedObjects[info.func] and not (caller and protectedObjects[info.func][caller.func]) then error("attempt to set environment of protected function", 2) end
+            n_setfenv(f+1, tab)
+        elseif type(f) == "function" then
+            local caller = getinfo(2, "f")
+            if protectedObjects[f] and not (caller and protectedObjects[f][caller.func]) then error("attempt to set environment of protected function", 2) end
+        end
+        n_setfenv(f, tab)
+    end
 end
 
 if d_getfenv then

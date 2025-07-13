@@ -32,7 +32,7 @@ function fm.OverWrite(sPath,data,mode)
     then
         file.write(data)
     else
-        file.write(util.string.Serialise(data))
+        file.write(util.string.Serialize(data))
     end
     file.close()
     return true
@@ -62,7 +62,7 @@ function fm.readFile(sPath,mode)
     then
         data = file.readAll()
     else
-        data = textutils.unserialise(file.readAll())
+        data = util.string.UnSerialize(file.readAll())
     end
     file.close()
     return data

@@ -1,32 +1,42 @@
+-- Modified from original GeneralModules, licensed under MIT
+-- These modifications were made by wendell Parham for the project
+-- For full license information, see LICENSE file in the modules directory.
+
 local handle = {}
+local getmetatable = getmetatable
+local originType = type
+local function type(value,byPass)
+    local FoundType = originType(value)
+    if FoundType == "table"
+    then
+        local bool,meta = pcall(getmetatable,value)
+        if not bool or not meta or not byPass
+        then
+            return "table"
+        end
+        return meta.__type
+    end
+    return FoundType
+end
 local function listerror(tbl)
-    local list = "{"
+    local list = " "
     if #tbl > 1
     then
         for _,v in pairs(tbl) do
-            list = list..v..",\t"
+            list = list..v..", "
         end
         list = string.sub(list,1,#list-2)
-        list = list.."}"
+        list = list.." "
     else
         list = tbl[1]
     end
     return list
 end
-local function getType(var,btrue)
-    if type(var) == "table" and btrue
-    then
-        return (getmetatable(var) or {})._name or "table"
-    elseif type(var) == "table"
-    then
-        return "table"
-    end
-    return type(var)
-end
-local function debugInfo(n)
+
+local function get_name(n)
     local name
     if debug and debug.getinfo then -- if we can get the name of the called function then lets include index else put the file in it's place
-        local ok,info = pcall(debug.getinfo,4,"nS")
+        local ok,info = pcall(debug.getinfo,(n or 0)+5,"nS")
         if not ok
         then
             return
@@ -35,7 +45,7 @@ local function debugInfo(n)
     end
     return name
 end
-local function callerDebuginfo(n)
+local function get_internal_name(n)
     local name
     if debug and debug.getinfo then -- if we can get the name of the called function then lets include index else put the file in it's place
         local ok,info = pcall(debug.getinfo,n or 3,"nS")
@@ -47,99 +57,88 @@ local function callerDebuginfo(n)
     end
     return name
 end
+---used when a mismatch number of argument or type has been decteded by one of the expect apis done because we can not call the expected api on in it self 
 local function checkArguments()
-    local name = callerDebuginfo(4)
+    local name = get_name()
     error(("check arguments %s:"):format(name and name or ""),3)
 end
----comment
+
+
+handle.internal_apis = {
+    Warning = "these apis have no argument checking because of stock overflow reasons",
+    listerror = listerror,
+    get_name = get_name,
+    get_internal_name = get_internal_name,
+    checkArguments = checkArguments
+}
 ---@param _bClasses boolean
 ---@param index number
 ---@param var any
 ---@param ... string
 ---@return any
-handle.expect = function (_bClasses,index,var,...)
+function handle.expect(_bClasses,index,var,...)
     if #{...} == 0 or type(_bClasses) ~= "boolean"
     then
         checkArguments()
     end
-    if type(var) == "table" and _bClasses
-    then
-        local info = (getmetatable(var) or {})._name
-        for _,v in pairs({...}) do
-            if v == (info or "table")
-            then
-                return var
-            end
-        end
-    else
-        for _,v in pairs({...}) do
-            if type(var) == v
-            then
-                return var
-            end
+    local CurrentType = type(var,_bClasses)
+    for _,v in pairs({...}) do
+        if CurrentType == v
+        then
+            return var
         end
     end
-    local name  = debugInfo()
-    error(("argument #%s%s expected %s: got %s"):format(index,name and (" from %s"):format(name) or "",listerror({...}),getType(var,_bClasses)),3)
+    local name  = get_name()
+    error(("argument #%s%s expected %s: got %s"):format(index,name and (" from %s"):format(name) or "",listerror({...}),type(var,_bClasses)),3)
 end 
----comment
+
 ---@param index number
 ---@param var any
 ---@param ... string
 ---@return any
-handle.blacklist  = function (_bClasses,index,var,...)
+---@diagnostic disable-next-line: lowercase-global
+function handle.blacklist(_bClasses,index,var,...)
     handle.expect(false,1,_bClasses,"boolean")
     handle.expect(false,2,index,"number")
     if #{...}  == 0
     then
         checkArguments()
     end
-    local info
-    if type(var) == "table"
-    then
-        info = (getmetatable(var) or {}).type
-    end
-    local faild = false
+    local info = type(var,_bClasses)
+    local failed = false
     for _,v in pairs({...}) do
-        if info
+        if info == v
         then
-            for _,b in pairs({...}) do
-                if b == info
-                then
-                    faild = true
-                end
-            end
-        elseif type(var) == v
-        then
-            faild = true
+            failed = true
         end
     end
-    if faild
+    if failed
     then
-        local name  = debugInfo()
-        error(("argument #%s%s banned %s: got %s"):format(index,name and (" from %s"):format(name) or "",listerror({...}),getType(var,_bClasses)),3)
+        local name  = get_name()
+        error(("argument #%s%s banned %s: got %s"):format(index,name and (" from %s"):format(name) or "",listerror({...}),type(var,_bClasses)),3)
     end
     return var
 end
----comment
+
 ---@param index number
 ---@param var any
 ---@return any
-handle.expectValue = function (index,var)
+---@diagnostic disable-next-line: lowercase-global
+function handle.expectValue(index,var)
     handle.expect(false,1,index,"number")
     if type(var) == "nil"
     then
-        local name = debugInfo()
+        local name = get_name()
         error(("argument #%s%s:expected value got nil"):format(index,name and (" from %s"):format(name) or ""),3)
     end
     return var
 end
-setmetatable(handle,{call = handle.expect})
----comment
+
 ---@param tbl table
 ---@param index number|string
 ---@param ... string
-handle.field = function (loc,tbl,index,...)
+---@diagnostic disable-next-line: lowercase-global
+function handle.field(loc,tbl,index,...)
     handle.expect(false,1,loc,"number")
     handle.expect(false,2,tbl,"table")
     handle.expect(false,3,index,"string","number")
@@ -153,18 +152,19 @@ handle.field = function (loc,tbl,index,...)
     local bool = pcall(handle.expect,true,0,tbl[index],...)
     if not bool
     then
-        local name = debugInfo()
+        local name = get_name()
         error(("argument #%s %s: %s is expected to be %s: got %s"):format(loc,index,name and (" from %s"):format(name) or "",listerror({...}),type(tbl[index])),3)
     end
     return tbl[index]
 end
----comment
+
 ---@param index number|string
 ---@param num number
 ---@param min number|nil
 ---@param max number|nil
 ---@return number
-handle.range = function (index,num,min,max)
+---@diagnostic disable-next-line: lowercase-global
+function handle.range(index,num,min,max)
     handle.expect(false,1,index,"number","string")
     handle.expect(false,2,num,"number")
     min = handle.expect(false,3,min,"number","nil") or -math.huge
@@ -174,10 +174,9 @@ handle.range = function (index,num,min,max)
         error(("min is greator then max got %s/%s"):format(min,max),2)
     elseif num > max or num < min
     then
-        local name = debugInfo()
-        error(("expected argument #%s%s: to be between %s and %s got %s"):format(index,name and (" from %s"):format(name) or "",min,max,num),3)
+        local name = get_name()
+        error(("expected argument #%s%s: to be between %s and %s got %s"):format(index,name and (" from %s"):format(name) or "",min,max,num),4)
     end
     return num
 end
-setmetatable(handle,{__call = handle.expect})
-return handle
+return setmetatable(handle,{__call = expect})

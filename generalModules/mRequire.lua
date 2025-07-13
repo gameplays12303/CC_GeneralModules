@@ -50,7 +50,7 @@ local function protect(Tbl)
             protect(v)
         elseif type(v) == "function"
         then
-            debug.protect(v)
+            pcall(debug.protect,v)
         end
     end
 end
@@ -59,12 +59,12 @@ end
 --- unlike normal require it can take a environment table and reload a api
 ---@param _sPath string
 ---@param _Env table|nil
----@param bReload boolean|nil
+---@param bforce_Reload boolean|nil
 ---@return table|unknown
-function handle.require(_sPath,_Env,bReload)
+function handle.require(_sPath,_Env,bforce_Reload)
     expect(1,_sPath,"string")
     expect(2,_Env,"table","nil")
-    expect(3,bReload,"boolean","nil")
+    expect(3,bforce_Reload,"boolean","nil")
     -- backwards support for require
     -- turns the '.' into "/" then adds
     -- .lua to the end of the string
@@ -99,7 +99,7 @@ function handle.require(_sPath,_Env,bReload)
     -- is so it simply calleds the module once again and returns the APIS the module returns 
     -- unless he reload boolean is true
     -- which then it will reload and replace the module completelly 
-    if not bReload
+    if not bforce_Reload
     then
         for i,v in pairs(handle.loaded) do
             if i == _sPath
@@ -110,8 +110,8 @@ function handle.require(_sPath,_Env,bReload)
                 if table.setReadOnly
                 then
                     local meta = getmetatable(v).__index
-                    return 
-                    table.unpack(meta)
+                    return table.unpack(meta)
+                    
                 end
                 return v()
             end
@@ -136,10 +136,15 @@ function handle.require(_sPath,_Env,bReload)
     then
         error(ok[2],0)
     end
-    if table.setReadOnly and debug and debug.protect
+    if table.setReadOnly
     then
-        protect(ok)
+        if debug and debug.protect
+        then
+            protect(ok)
+        end
         handle.loaded[_sPath] = table.setReadOnly({table.unpack(ok,2)},handle)
+        local meta = getmetatable(handle.loaded[_sPath])
+        meta._env = _Env
     else
         handle.loaded[_sPath] = fn
     end
@@ -147,9 +152,18 @@ function handle.require(_sPath,_Env,bReload)
 end
 --- reloads the all the apis
 function handle.reLoadAll()
-    for i, v in pairs(handle.loaded) do
-        local Env = getfenv(v)
-        handle.require(i,Env,true)
+    if table.isReadOnly
+    then
+        for path,value in pairs(handle.loaded) do
+            local env = (getmetatable(value) or {})._env
+            handle.require(path,env,true)
+        end
+    else
+        for i, v in pairs(handle.loaded) do
+            
+            local _Env = getfenv(v)
+            handle.require(i,_Env,true)
+        end
     end
 end
 return handle
